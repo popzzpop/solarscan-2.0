@@ -31,32 +31,25 @@
   let error: string | undefined;
 
   // Animation state
-  let isPlaying = false;
   let currentFrame = 0;
   let totalFrames = 0;
   let animationInterval: NodeJS.Timeout | undefined;
-  let animationSpeed = 1000; // ms per frame
+  let animationSpeed = 1000; // ms per frame - fixed speed
   let opacity = 0.7;
-  let showRoofOnly = true;
+  let showRoofOnly = false;
+
+  // UI state for compact design
+  let isMinimized = false;
 
   // Time controls for animations
   let selectedMonth = 0; // 0-11
   let selectedDay = 15; // 1-365, default middle of month
   let selectedHour = 12; // 0-23, default noon
 
-  // Animation speeds
-  const speedOptions = [
-    { label: '0.5x', value: 2000 },
-    { label: '1x', value: 1000 },
-    { label: '2x', value: 500 },
-    { label: '4x', value: 250 }
-  ];
-  let selectedSpeedIndex = 1; // default 1x
-
-  $: animationSpeed = speedOptions[selectedSpeedIndex].value;
-
   // Load data layers when building insights change
   $: if (buildingInsights) {
+    console.log('SolarDataLayers: Building insights changed, map available:', !!map);
+    console.log('SolarDataLayers: Google Maps available:', !!window.google?.maps?.GroundOverlay);
     loadDataLayers();
   }
 
@@ -67,8 +60,8 @@
     clearOverlays();
   }
 
-  // Handle animation frame updates
-  $: if (currentLayer && isPlaying && totalFrames > 1) {
+  // Handle animation frame updates - always play animations for animated layers
+  $: if (currentLayer && totalFrames > 1) {
     if (!animationInterval) {
       startAnimation();
     }
@@ -77,32 +70,44 @@
   }
 
   async function loadDataLayers() {
-    if (!buildingInsights || !map) return;
+    if (!buildingInsights || !map) {
+      console.log('SolarDataLayers: Missing buildingInsights or map');
+      return;
+    }
 
+    console.log('SolarDataLayers: Loading data layers...');
     try {
       isLoading = true;
       error = undefined;
       
-      const center = { lat: buildingInsights.center.latitude, lng: buildingInsights.center.longitude };
+      const center = buildingInsights.center; // Already in {latitude, longitude} format
       const radius = 50; // meters
+      console.log('SolarDataLayers: Requesting data layers for center:', center);
+      
       dataLayersResponse = await getDataLayerUrls(center, radius, googleMapsApiKey);
+      console.log('SolarDataLayers: Data layers loaded successfully:', dataLayersResponse);
     } catch (err: any) {
       error = `Failed to load data layers: ${err.message}`;
-      console.error('Error loading data layers:', err);
+      console.error('SolarDataLayers: Error loading data layers:', err);
     } finally {
       isLoading = false;
     }
   }
 
   async function loadLayer(layerId: LayerId) {
-    if (!dataLayersResponse || !map) return;
+    if (!dataLayersResponse || !map) {
+      console.log('SolarDataLayers: Missing dataLayersResponse or map for layer:', layerId);
+      return;
+    }
 
+    console.log('SolarDataLayers: Loading layer:', layerId);
     try {
       isLoading = true;
       error = undefined;
       clearOverlays();
 
       currentLayer = await getLayer(layerId, dataLayersResponse, googleMapsApiKey);
+      console.log('SolarDataLayers: Layer loaded successfully:', layerId, currentLayer);
       
       // Set up frame counts based on layer type
       if (layerId === 'monthlyFlux') {
@@ -116,11 +121,9 @@
         currentFrame = 0;
       }
 
-      // Auto-start animation for animated layers
-      if (dataLayerOptions[layerId].animated && totalFrames > 1) {
-        isPlaying = true;
-      }
+      // Animation will start automatically via reactive statement
 
+      // Immediately show the overlay
       updateOverlay();
     } catch (err: any) {
       error = `Failed to load layer: ${err.message}`;
@@ -131,27 +134,37 @@
   }
 
   function updateOverlay() {
-    if (!currentLayer || !map) return;
+    if (!currentLayer || !map) {
+      console.log('SolarDataLayers: Cannot update overlay - missing currentLayer or map');
+      return;
+    }
 
+    console.log('SolarDataLayers: Updating overlay, layer:', currentLayer.id, 'showRoofOnly:', showRoofOnly);
     clearOverlays();
 
+    // Render all canvases for this layer, matching the working DataLayersSection approach
     const canvases = currentLayer.render(showRoofOnly, selectedMonth, selectedDay);
-    const canvas = canvases[currentFrame] || canvases[0];
+    const bounds = currentLayer.bounds;
     
-    if (!canvas) return;
+    console.log('SolarDataLayers: Rendered canvases count:', canvases.length, 'bounds:', bounds);
 
-    const dataUrl = canvas.toDataURL();
-    const bounds = new google.maps.LatLngBounds(
-      new google.maps.LatLng(currentLayer.bounds.south, currentLayer.bounds.west),
-      new google.maps.LatLng(currentLayer.bounds.north, currentLayer.bounds.east)
-    );
-
-    const overlay = new google.maps.GroundOverlay(dataUrl, bounds, {
-      opacity: opacity,
+    // Create all overlays at once, matching the original working implementation
+    overlays = canvases.map((canvas) => {
+      console.log('SolarDataLayers: Creating overlay for canvas:', canvas.width, 'x', canvas.height);
+      return new google.maps.GroundOverlay(canvas.toDataURL(), bounds, {
+        opacity: opacity,
+      });
     });
 
-    overlay.setMap(map);
-    overlays.push(overlay);
+    // For non-animated layers, show the first overlay immediately
+    if (!['monthlyFlux', 'hourlyShade'].includes(currentLayer.id)) {
+      if (overlays.length > 0) {
+        overlays[0].setMap(map);
+        console.log('SolarDataLayers: Static overlay added to map');
+      }
+    }
+    
+    console.log('SolarDataLayers: Created', overlays.length, 'overlays for layer:', currentLayer.id);
   }
 
   function clearOverlays() {
@@ -183,9 +196,6 @@
     }
   }
 
-  function toggleAnimation() {
-    isPlaying = !isPlaying;
-  }
 
   // Manual frame control
   function setFrame(frame: number) {
@@ -198,6 +208,18 @@
       }
       updateOverlay();
     }
+  }
+
+  // Update overlay when settings change
+  $: if (currentLayer && !isLoading) {
+    updateOverlay();
+  }
+
+  // Handle animated layer frame switching - matching original DataLayersSection approach
+  $: if (currentLayer?.id === 'monthlyFlux') {
+    overlays.forEach((overlay, i) => overlay.setMap(i === selectedMonth ? map : null));
+  } else if (currentLayer?.id === 'hourlyShade') {
+    overlays.forEach((overlay, i) => overlay.setMap(i === selectedHour ? map : null));
   }
 
   // Update opacity
@@ -226,177 +248,78 @@
   })();
 </script>
 
-<div class="bg-white border border-gray-200 rounded-lg p-4">
-  <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
-    🌍 Solar Data Visualization
-    <span class="ml-2 text-sm font-normal text-gray-600">Google Solar API</span>
-  </h3>
-
-  <!-- Layer Selection -->
-  <div class="mb-4">
-    <label for="layer-select" class="block text-sm font-medium text-gray-700 mb-2">
-      Data Layer Type
-    </label>
-    <select 
-      id="layer-select"
-      bind:value={selectedLayerId}
-      class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+<div class="bg-white border border-gray-200 rounded-lg shadow-lg">
+  <!-- Compact Header -->
+  <div class="flex items-center justify-between p-2 bg-gradient-to-r from-blue-50 to-green-50 rounded-t-lg">
+    <div class="flex items-center space-x-2">
+      <span class="text-sm font-semibold text-gray-800">🌍 Solar Data</span>
+      <select 
+        bind:value={selectedLayerId}
+        class="text-xs p-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 bg-white"
+      >
+        {#each Object.entries(dataLayerOptions) as [id, info]}
+          <option value={id}>
+            {info.name} {info.animated ? '🎬' : ''}
+          </option>
+        {/each}
+      </select>
+    </div>
+    <button 
+      on:click={() => isMinimized = !isMinimized}
+      class="text-gray-600 hover:text-gray-800 text-sm font-bold px-1"
     >
-      {#each Object.entries(dataLayerOptions) as [id, info]}
-        <option value={id}>
-          {info.name} {info.animated ? '🎬' : ''}
-        </option>
-      {/each}
-    </select>
-    <p class="text-xs text-gray-500 mt-1">
-      {selectedLayerId !== 'none' ? dataLayerOptions[selectedLayerId].description : 'Select a layer to visualize solar data'}
-    </p>
+      {isMinimized ? '▼' : '▲'}
+    </button>
   </div>
 
-  <!-- Loading/Error States -->
-  {#if isLoading}
-    <div class="flex items-center justify-center py-4">
-      <div class="animate-pulse text-blue-600">
-        <p class="font-semibold">🔄 Loading solar data...</p>
-      </div>
-    </div>
-  {/if}
-
-  {#if error}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-      <p class="text-red-800 text-sm">❌ {error}</p>
-    </div>
-  {/if}
-
-  <!-- Animation Controls (for animated layers) -->
-  {#if selectedLayerId !== 'none' && dataLayerOptions[selectedLayerId].animated && currentLayer}
-    <div class="mb-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
-      <h4 class="font-semibold text-blue-800 mb-3">🎬 Animation Controls</h4>
-      
-      <!-- Play/Pause and Speed Controls -->
-      <div class="flex items-center space-x-4 mb-3">
-        <button 
-          on:click={toggleAnimation}
-          class="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
-        >
-          <span>{isPlaying ? '⏸️' : '▶️'}</span>
-          <span>{isPlaying ? 'Pause' : 'Play'}</span>
-        </button>
-
-        <div class="flex items-center space-x-2">
-          <label class="text-sm text-blue-700 font-medium">Speed:</label>
-          <select 
-            bind:value={selectedSpeedIndex}
-            class="px-2 py-1 border border-blue-300 rounded text-sm focus:ring-2 focus:ring-blue-500"
-          >
-            {#each speedOptions as speed, index}
-              <option value={index}>{speed.label}</option>
-            {/each}
-          </select>
-        </div>
-      </div>
-
-      <!-- Frame Display -->
-      {#if frameDisplayText}
-        <div class="mb-3">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-medium text-gray-700">{frameDisplayText}</span>
-            <span class="text-xs text-gray-500">{Math.round((currentFrame / (totalFrames - 1)) * 100)}%</span>
-          </div>
-          <!-- Progress Bar -->
-          <div class="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              class="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-              style="width: {((currentFrame / (totalFrames - 1)) * 100)}%"
-            ></div>
+  <!-- Expandable Content -->
+  {#if !isMinimized}
+    <div class="p-2">
+      <!-- Loading/Error States -->
+      {#if isLoading}
+        <div class="flex items-center justify-center py-2">
+          <div class="animate-pulse text-blue-600 text-xs">
+            <p class="font-semibold">🔄 Loading...</p>
           </div>
         </div>
       {/if}
 
-      <!-- Manual Frame Controls -->
-      {#if selectedLayerId === 'monthlyFlux'}
-        <div class="grid grid-cols-4 gap-1">
-          {#each monthNames as month, index}
-            <button
-              on:click={() => setFrame(index)}
-              class="px-2 py-1 text-xs rounded border {currentFrame === index ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'} transition-colors"
-            >
-              {month.slice(0, 3)}
-            </button>
-          {/each}
-        </div>
-      {:else if selectedLayerId === 'hourlyShade'}
-        <div class="grid grid-cols-8 gap-1">
-          {#each Array(24) as _, hour}
-            <button
-              on:click={() => setFrame(hour)}
-              class="px-1 py-1 text-xs rounded border {currentFrame === hour ? 'bg-purple-600 text-white border-purple-600' : 'bg-white text-purple-600 border-purple-300 hover:bg-purple-50'} transition-colors"
-            >
-              {hour === 0 ? '12a' : hour === 12 ? '12p' : hour > 12 ? `${hour-12}p` : `${hour}a`}
-            </button>
-          {/each}
+      {#if error}
+        <div class="bg-red-50 border border-red-200 rounded p-2 mb-2">
+          <p class="text-red-800 text-xs">❌ {error}</p>
         </div>
       {/if}
-    </div>
-  {/if}
 
-  <!-- Layer Controls -->
-  {#if selectedLayerId !== 'none' && currentLayer}
-    <div class="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-      <h4 class="font-semibold text-gray-800 mb-3">🎛️ Display Settings</h4>
-      
-      <div class="grid grid-cols-1 gap-3">
-        <!-- Opacity Control -->
-        <div>
-          <label for="opacity-slider" class="flex items-center justify-between text-sm font-medium text-gray-700 mb-1">
-            <span>Opacity</span>
-            <span class="text-xs text-gray-500">{Math.round(opacity * 100)}%</span>
-          </label>
-          <input 
-            id="opacity-slider"
-            type="range" 
-            bind:value={opacity}
-            min="0" 
-            max="1" 
-            step="0.1"
-            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-          />
+      <!-- Compact Animation Controls for animated layers -->
+      {#if selectedLayerId !== 'none' && dataLayerOptions[selectedLayerId].animated && currentLayer}
+        <div class="mb-2 p-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded">
+          <!-- Frame Display with Slider -->
+          {#if frameDisplayText}
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-medium text-gray-700">{frameDisplayText}</span>
+            </div>
+            <input 
+              type="range" 
+              min="0" 
+              max={totalFrames - 1} 
+              bind:value={currentFrame}
+              on:input={(e) => setFrame(parseInt(e.target.value))}
+              class="w-full h-1 bg-gray-200 rounded-lg slider"
+            />
+          {/if}
         </div>
+      {/if}
 
-        <!-- Roof Only Toggle -->
-        <label for="roof-only-checkbox" class="flex items-center justify-between cursor-pointer">
-          <span class="text-sm font-medium text-gray-700">Show Roof Only</span>
-          <input 
-            id="roof-only-checkbox"
-            type="checkbox" 
-            bind:checked={showRoofOnly}
-            on:change={updateOverlay}
-            class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-        </label>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Legend -->
-  {#if selectedLayerId !== 'none' && currentLayer && currentLayer.palette}
-    <div class="p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-orange-200 rounded-lg">
-      <h4 class="font-semibold text-gray-800 mb-2">📊 Color Legend</h4>
-      
-      <div class="flex items-center justify-between mb-2">
-        <span class="text-sm text-gray-600">{currentLayer.palette.min}</span>
-        <span class="text-sm text-gray-600">{currentLayer.palette.max}</span>
-      </div>
-      
-      <!-- Color Gradient Bar -->
-      <div class="h-4 rounded-full bg-gradient-to-r border border-gray-300" 
-           style="background: linear-gradient(to right, {currentLayer.palette.colors.join(', ')})">
-      </div>
-      
-      <div class="flex justify-between mt-1">
-        <span class="text-xs text-gray-500">Low</span>
-        <span class="text-xs text-gray-500">High</span>
-      </div>
+      <!-- Compact Legend -->
+      {#if selectedLayerId !== 'none' && currentLayer && currentLayer.palette}
+        <div class="flex items-center justify-between space-x-2 text-xs">
+          <span class="text-gray-600 min-w-0 truncate">{currentLayer.palette.min}</span>
+          <div class="flex-1 h-2 rounded border border-gray-300" 
+               style="background: linear-gradient(to right, {currentLayer.palette.colors.join(', ')})">
+          </div>
+          <span class="text-gray-600 min-w-0 truncate">{currentLayer.palette.max}</span>
+        </div>
+      {/if}
     </div>
   {/if}
 </div>
@@ -404,19 +327,20 @@
 <style>
   .slider::-webkit-slider-thumb {
     appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%; 
     background: #3B82F6;
     cursor: pointer;
+    border: 1px solid white;
   }
 
   .slider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: #3B82F6;
     cursor: pointer;
-    border: none;
+    border: 1px solid white;
   }
 </style>

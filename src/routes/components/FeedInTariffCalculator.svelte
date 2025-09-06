@@ -21,147 +21,286 @@
   $: consumedSolarEnergy = Math.min(yearlyProduction, yearlyKwhConsumption);
   $: energySavings = consumedSolarEnergy * energyCostPerKwh;
   
-  // Calculate 25-year totals (with 2% annual degradation)
-  $: total25YearFitIncomeLow = calculateTotal25Years(fitIncomeLow);
-  $: total25YearFitIncomeHigh = calculateTotal25Years(fitIncomeHigh);
-  $: total25YearEnergySavings = calculateTotal25Years(energySavings);
-
   // Total annual benefit
   $: totalAnnualBenefitLow = fitIncomeLow + energySavings;
   $: totalAnnualBenefitHigh = fitIncomeHigh + energySavings;
 
-  // Simple payback period (without considering degradation or inflation)
+  // Simple payback period
   $: paybackPeriodLow = installationCost / totalAnnualBenefitLow;
   $: paybackPeriodHigh = installationCost / totalAnnualBenefitHigh;
+
+  // Calculate 25-year cash flow data for chart
+  $: cashFlowData = calculateCashFlowData();
+  
+  function calculateCashFlowData() {
+    // Add safety checks
+    if (!yearlyKwhConsumption || !installationCost || !totalAnnualBenefitLow || !totalAnnualBenefitHigh) {
+      console.log('FeedInTariffCalculator: Missing data for chart calculation:', {
+        yearlyKwhConsumption,
+        installationCost,
+        totalAnnualBenefitLow,
+        totalAnnualBenefitHigh
+      });
+      // Return default values to prevent chart errors
+      return {
+        years: Array.from({length: 26}, (_, i) => i),
+        noSolarCashFlow: Array(26).fill(0),
+        lowFitCashFlow: Array(26).fill(0),
+        highFitCashFlow: Array(26).fill(0),
+        chartMax: 1000,
+        chartMin: -1000,
+        range: 2000,
+        chartLeft: 80,
+        chartRight: 820,
+        chartTop: 40,
+        chartBottom: 320,
+        chartWidth: 740,
+        chartHeight: 280,
+        valueToY: (value) => 180,
+        yearToX: (year) => 80 + (year / 25) * 740
+      };
+    }
+
+    const years = Array.from({length: 26}, (_, i) => i); // 0-25 years
+    
+    // No Solar: Just cumulative electricity bills (negative)
+    const noSolarCashFlow = years.map(year => -(year * yearlyKwhConsumption * energyCostPerKwh));
+    
+    // Solar scenarios: Start with -installationCost, then add annual benefits with degradation
+    const lowFitCashFlow = years.map(year => {
+      if (year === 0) return -installationCost;
+      let cumulative = -installationCost;
+      for (let y = 1; y <= year; y++) {
+        const degradationFactor = Math.pow(0.98, y - 1);
+        cumulative += totalAnnualBenefitLow * degradationFactor;
+      }
+      return cumulative;
+    });
+    
+    const highFitCashFlow = years.map(year => {
+      if (year === 0) return -installationCost;
+      let cumulative = -installationCost;
+      for (let y = 1; y <= year; y++) {
+        const degradationFactor = Math.pow(0.98, y - 1);
+        cumulative += totalAnnualBenefitHigh * degradationFactor;
+      }
+      return cumulative;
+    });
+    
+    console.log('FeedInTariffCalculator: Chart data calculated:', {
+      sampleNoSolar: noSolarCashFlow.slice(0, 5),
+      sampleLowFit: lowFitCashFlow.slice(0, 5),
+      sampleHighFit: highFitCashFlow.slice(0, 5)
+    });
+    
+    // Calculate dynamic scale
+    const allValues = [...noSolarCashFlow, ...lowFitCashFlow, ...highFitCashFlow];
+    const maxValue = Math.max(...allValues);
+    const minValue = Math.min(...allValues);
+    const range = maxValue - minValue;
+    const padding = range * 0.1; // 10% padding
+    
+    const chartMax = maxValue + padding;
+    const chartMin = minValue - padding;
+    
+    // Chart dimensions
+    const chartLeft = 80;
+    const chartRight = 820;
+    const chartTop = 40;
+    const chartBottom = 320;
+    const chartWidth = chartRight - chartLeft;
+    const chartHeight = chartBottom - chartTop;
+    
+    // Helper functions
+    const valueToY = (value) => chartBottom - ((value - chartMin) / range) * chartHeight;
+    const yearToX = (year) => chartLeft + (year / 25) * chartWidth;
+    
+    return { 
+      years, 
+      noSolarCashFlow, 
+      lowFitCashFlow, 
+      highFitCashFlow,
+      chartMax,
+      chartMin,
+      range: chartMax - chartMin,
+      chartLeft,
+      chartRight,
+      chartTop,
+      chartBottom,
+      chartWidth,
+      chartHeight,
+      valueToY,
+      yearToX
+    };
+  }
 
   function calculateTotal25Years(annualAmount: number): number {
     let total = 0;
     for (let year = 0; year < 25; year++) {
-      // 2% annual production degradation, 2% energy cost inflation
       const degradationFactor = Math.pow(0.98, year);
-      const inflationFactor = Math.pow(1.02, year);
-      total += annualAmount * degradationFactor * inflationFactor;
+      total += annualAmount * degradationFactor;
     }
     return total;
   }
 
-  let selectedScenario: 'low' | 'high' = 'high';
+  $: total25YearBenefitLow = calculateTotal25Years(totalAnnualBenefitLow) - installationCost;
+  $: total25YearBenefitHigh = calculateTotal25Years(totalAnnualBenefitHigh) - installationCost;
 </script>
 
 <div class="bg-white border border-gray-200 rounded-lg p-4">
-  <h3 class="font-semibold text-gray-800 mb-4">💰 Malta Feed-in Tariff Benefits</h3>
+  <h3 class="font-semibold text-gray-800 mb-4">💰 Malta Feed-in Tariff Comparison</h3>
   
-  <!-- Scenario Selector -->
-  <div class="flex space-x-2 mb-4">
-    <button 
-      class="flex-1 p-3 rounded-lg border {selectedScenario === 'low' ? 'bg-blue-100 border-blue-400' : 'bg-gray-50 border-gray-300'}"
-      on:click={() => selectedScenario = 'low'}
-    >
-      <div class="text-center">
-        <p class="text-sm font-semibold text-blue-800">With Government Grant</p>
-        <p class="text-xs text-blue-600">€0.105/kWh FIT + Lower Installation Cost</p>
-      </div>
-    </button>
-    <button 
-      class="flex-1 p-3 rounded-lg border {selectedScenario === 'high' ? 'bg-green-100 border-green-400' : 'bg-gray-50 border-gray-300'}"
-      on:click={() => selectedScenario = 'high'}
-    >
-      <div class="text-center">
-        <p class="text-sm font-semibold text-green-800">High Feed-in Tariff</p>
-        <p class="text-xs text-green-600">€0.15/kWh FIT - Maximum Income!</p>
-      </div>
-    </button>
+  <!-- Comparison Table -->
+  <div class="overflow-x-auto mb-6">
+    <table class="w-full border-collapse border border-gray-300 rounded-lg">
+      <thead>
+        <tr class="bg-gray-50">
+          <th class="border border-gray-300 px-4 py-3 text-left font-semibold text-gray-800">Scenario</th>
+          <th class="border border-gray-300 px-4 py-3 text-center font-semibold text-red-600">No Solar</th>
+          <th class="border border-gray-300 px-4 py-3 text-center font-semibold text-blue-600">Low FiT (€0.105/kWh)</th>
+          <th class="border border-gray-300 px-4 py-3 text-center font-semibold text-green-600">High FiT (€0.15/kWh)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="border-b border-gray-200">
+          <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Installation Cost</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-red-600">€0</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{showMoney(installationCost)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(installationCost)}</td>
+        </tr>
+        <tr class="border-b border-gray-200">
+          <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Annual Bill Savings</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-red-600">€0</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{showMoney(energySavings)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(energySavings)}</td>
+        </tr>
+        <tr class="border-b border-gray-200">
+          <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Annual FiT Income</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-red-600">€0</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{showMoney(fitIncomeLow)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(fitIncomeHigh)}</td>
+        </tr>
+        <tr class="border-b border-gray-200 bg-yellow-50">
+          <td class="border border-gray-300 px-4 py-3 font-bold text-gray-800">Total Annual Benefit</td>
+          <td class="border border-gray-300 px-4 py-3 text-center font-bold text-red-600">-{showMoney(yearlyKwhConsumption * energyCostPerKwh)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center font-bold text-blue-600">{showMoney(totalAnnualBenefitLow)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center font-bold text-green-600">{showMoney(totalAnnualBenefitHigh)}</td>
+        </tr>
+        <tr class="border-b border-gray-200">
+          <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Payback Period</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-red-600">N/A</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{Math.round(paybackPeriodLow * 10) / 10} years</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{Math.round(paybackPeriodHigh * 10) / 10} years</td>
+        </tr>
+        <tr class="bg-green-50">
+          <td class="border border-gray-300 px-4 py-3 font-bold text-gray-800">25-Year Net Profit</td>
+          <td class="border border-gray-300 px-4 py-3 text-center font-bold text-red-600">-{showMoney(25 * yearlyKwhConsumption * energyCostPerKwh)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center font-bold text-blue-600">{showMoney(total25YearBenefitLow)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center font-bold text-green-600">{showMoney(total25YearBenefitHigh)}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 
-  {#if excessEnergyYearly > 0}
-    <!-- FIT Income Display -->
-    <div class="bg-gradient-to-r from-yellow-50 to-green-50 border border-yellow-200 rounded-lg p-4 mb-4">
-      <div class="text-center">
-        <h4 class="font-bold text-gray-800 mb-2">🌟 Your Excess Energy Income</h4>
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <p class="text-2xl font-bold text-green-600">
-              {Math.round(excessEnergyYearly)} kWh
-            </p>
-            <p class="text-sm text-gray-600">Excess Energy/Year</p>
-          </div>
-          <div>
-            <p class="text-2xl font-bold text-green-600">
-              {selectedScenario === 'high' ? showMoney(fitIncomeHigh) : showMoney(fitIncomeLow)}
-            </p>
-            <p class="text-sm text-gray-600">FIT Income/Year</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Annual Benefits Summary -->
-  <div class="grid grid-cols-1 gap-3 mb-4">
-    <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-      <span class="text-blue-800 font-semibold">💡 Energy Bill Savings</span>
-      <span class="text-blue-600 font-bold">{showMoney(energySavings)}/year</span>
-    </div>
+  <!-- 25-Year Cash Flow Chart -->
+  <div class="mb-6">
+    <h4 class="font-bold text-gray-800 mb-4 text-center">📈 25-Year Cumulative Cash Flow Comparison</h4>
     
-    <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-      <span class="text-green-800 font-semibold">💰 Feed-in Tariff Income</span>
-      <span class="text-green-600 font-bold">
-        {selectedScenario === 'high' ? showMoney(fitIncomeHigh) : showMoney(fitIncomeLow)}/year
-      </span>
+    <!-- Dynamic SVG Chart -->
+    <div class="bg-gray-50 border border-gray-300 rounded-lg p-4">
+      <svg width="100%" height="400" viewBox="0 0 900 400" class="overflow-visible">
+        <!-- Grid lines and Y-axis labels -->
+        {#each Array(7) as _, i}
+          <line x1={cashFlowData.chartLeft} y1={cashFlowData.chartTop + i * (cashFlowData.chartHeight / 6)} x2={cashFlowData.chartRight} y2={cashFlowData.chartTop + i * (cashFlowData.chartHeight / 6)} stroke="#e5e7eb" stroke-width="1" />
+          <text x={cashFlowData.chartLeft - 10} y={cashFlowData.chartTop + i * (cashFlowData.chartHeight / 6) + 4} fill="#6b7280" text-anchor="end" font-size="11">
+            {showMoney(Math.round(cashFlowData.chartMax - (i / 6) * cashFlowData.range))}
+          </text>
+        {/each}
+        
+        <!-- X-axis year labels -->
+        {#each [0, 5, 10, 15, 20, 25] as year}
+          <text x={cashFlowData.yearToX(year)} y={cashFlowData.chartBottom + 20} fill="#6b7280" text-anchor="middle" font-size="11">
+            Year {year}
+          </text>
+          <line x1={cashFlowData.yearToX(year)} y1={cashFlowData.chartBottom} x2={cashFlowData.yearToX(year)} y2={cashFlowData.chartBottom + 5} stroke="#9ca3af" stroke-width="1" />
+        {/each}
+        
+        <!-- Zero line (if it's within the visible range) -->
+        {#if cashFlowData.chartMin <= 0 && cashFlowData.chartMax >= 0}
+          <line x1={cashFlowData.chartLeft} y1={cashFlowData.valueToY(0)} x2={cashFlowData.chartRight} y2={cashFlowData.valueToY(0)} stroke="#374151" stroke-width="2" stroke-dasharray="5,5" />
+          <text x={cashFlowData.chartLeft - 10} y={cashFlowData.valueToY(0) - 5} fill="#374151" text-anchor="end" font-size="10" font-weight="bold">Break Even</text>
+        {/if}
+        
+        <!-- Chart border -->
+        <rect x={cashFlowData.chartLeft} y={cashFlowData.chartTop} width={cashFlowData.chartWidth} height={cashFlowData.chartHeight} fill="none" stroke="#9ca3af" stroke-width="1" />
+        
+        <!-- No Solar Line (red, declining) -->
+        <polyline 
+          points={cashFlowData.years.map((year, i) => `${cashFlowData.yearToX(year)},${cashFlowData.valueToY(cashFlowData.noSolarCashFlow[i])}`).join(' ')}
+          fill="none" 
+          stroke="#dc2626" 
+          stroke-width="3"
+        />
+        
+        <!-- Low FiT Line (blue) -->
+        <polyline 
+          points={cashFlowData.years.map((year, i) => `${cashFlowData.yearToX(year)},${cashFlowData.valueToY(cashFlowData.lowFitCashFlow[i])}`).join(' ')}
+          fill="none" 
+          stroke="#2563eb" 
+          stroke-width="3"
+        />
+        
+        <!-- High FiT Line (green) -->
+        <polyline 
+          points={cashFlowData.years.map((year, i) => `${cashFlowData.yearToX(year)},${cashFlowData.valueToY(cashFlowData.highFitCashFlow[i])}`).join(' ')}
+          fill="none" 
+          stroke="#16a34a" 
+          stroke-width="3"
+        />
+        
+        <!-- Data points for better readability -->
+        {#each [5, 10, 15, 20, 25] as year}
+          <!-- No Solar points -->
+          <circle cx={cashFlowData.yearToX(year)} cy={cashFlowData.valueToY(cashFlowData.noSolarCashFlow[year])} r="4" fill="#dc2626" />
+          <!-- Low FiT points -->
+          <circle cx={cashFlowData.yearToX(year)} cy={cashFlowData.valueToY(cashFlowData.lowFitCashFlow[year])} r="4" fill="#2563eb" />
+          <!-- High FiT points -->
+          <circle cx={cashFlowData.yearToX(year)} cy={cashFlowData.valueToY(cashFlowData.highFitCashFlow[year])} r="4" fill="#16a34a" />
+        {/each}
+        
+        <!-- Legend -->
+        <g transform="translate(600, 60)">
+          <rect x="0" y="0" width="200" height="90" fill="white" stroke="#d1d5db" stroke-width="1" rx="4" />
+          <text x="10" y="15" fill="#374151" font-size="12" font-weight="bold">25-Year Comparison</text>
+          
+          <line x1="10" y1="30" x2="30" y2="30" stroke="#dc2626" stroke-width="3" />
+          <circle cx="20" cy="30" r="3" fill="#dc2626" />
+          <text x="35" y="35" fill="#374151" font-size="11">No Solar</text>
+          
+          <line x1="10" y1="50" x2="30" y2="50" stroke="#2563eb" stroke-width="3" />
+          <circle cx="20" cy="50" r="3" fill="#2563eb" />
+          <text x="35" y="55" fill="#374151" font-size="11">Low FiT (€0.105/kWh)</text>
+          
+          <line x1="10" y1="70" x2="30" y2="70" stroke="#16a34a" stroke-width="3" />
+          <circle cx="20" cy="70" r="3" fill="#16a34a" />
+          <text x="35" y="75" fill="#374151" font-size="11">High FiT (€0.15/kWh)</text>
+        </g>
+        
+        <!-- Chart title and axis labels -->
+        <text x="450" y="25" fill="#374151" text-anchor="middle" font-size="16" font-weight="bold">25-Year Cumulative Cash Flow</text>
+        <text x="450" y="380" fill="#6b7280" text-anchor="middle" font-size="12">Years</text>
+        <text x="25" y="200" fill="#6b7280" text-anchor="middle" font-size="12" transform="rotate(-90, 25, 200)">Cumulative Cash Flow (€)</text>
+      </svg>
     </div>
-    
-    <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg border-2 border-purple-200">
-      <span class="text-purple-800 font-bold">🎯 Total Annual Benefit</span>
-      <span class="text-purple-600 font-bold text-lg">
-        {selectedScenario === 'high' ? showMoney(totalAnnualBenefitHigh) : showMoney(totalAnnualBenefitLow)}/year
-      </span>
-    </div>
-  </div>
-
-  <!-- 25-Year Projection -->
-  <div class="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 mb-4">
-    <h4 class="font-bold text-purple-800 text-center mb-3">📈 25-Year Financial Projection</h4>
-    <div class="grid grid-cols-1 gap-2">
-      <div class="flex justify-between">
-        <span class="text-gray-700">Total Energy Savings:</span>
-        <span class="font-bold text-blue-600">{showMoney(total25YearEnergySavings)}</span>
-      </div>
-      <div class="flex justify-between">
-        <span class="text-gray-700">Total FIT Income:</span>
-        <span class="font-bold text-green-600">
-          {selectedScenario === 'high' ? showMoney(total25YearFitIncomeHigh) : showMoney(total25YearFitIncomeLow)}
-        </span>
-      </div>
-      <hr class="my-2">
-      <div class="flex justify-between text-lg">
-        <span class="font-bold text-gray-800">Total 25-Year Benefit:</span>
-        <span class="font-bold text-purple-600">
-          {selectedScenario === 'high' 
-            ? showMoney(total25YearFitIncomeHigh + total25YearEnergySavings)
-            : showMoney(total25YearFitIncomeLow + total25YearEnergySavings)}
-        </span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Payback Period -->
-  <div class="text-center p-3 bg-orange-50 border border-orange-200 rounded-lg">
-    <p class="text-orange-800 font-semibold">⏱️ Payback Period</p>
-    <p class="text-2xl font-bold text-orange-600">
-      {Math.round((selectedScenario === 'high' ? paybackPeriodHigh : paybackPeriodLow) * 10) / 10} years
-    </p>
-    <p class="text-xs text-orange-700 mt-1">
-      Then {25 - Math.round(selectedScenario === 'high' ? paybackPeriodHigh : paybackPeriodLow)} years of pure profit!
-    </p>
   </div>
 
   <!-- Call to Action -->
-  <div class="mt-4 p-4 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg text-center">
+  <div class="p-4 bg-gradient-to-r from-green-100 to-blue-100 rounded-lg text-center">
     <p class="text-gray-800 font-semibold mb-2">
       🚀 Ready to start earning from your roof?
     </p>
     <p class="text-sm text-gray-600">
-      Contact us today to secure your {selectedScenario === 'high' ? 'high' : 'grant-eligible'} feed-in tariff rate!
+      High FiT delivers <span class="font-bold">{showMoney(total25YearBenefitHigh - total25YearBenefitLow)} more profit</span> over 25 years!
     </p>
   </div>
 </div>

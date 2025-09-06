@@ -101,22 +101,26 @@ export async function getLayer(
         downloadGeoTIFF(urls.maskUrl, googleMapsApiKey),
         downloadGeoTIFF(urls.annualFluxUrl, googleMapsApiKey),
       ]);
+      // Calculate actual min/max values from the data
+      const sortedValues = Array.from(data.rasters[0]).sort((x, y) => x - y);
+      const minValue = sortedValues[0];
+      const maxValue = sortedValues.slice(-1)[0];
       const colors = ironPalette;
       return {
         id: layerId,
         bounds: mask.bounds,
         palette: {
           colors: colors,
-          min: 'Shady',
-          max: 'Sunny',
+          min: `${Math.round(minValue)} kWh/m²/year`,
+          max: `${Math.round(maxValue)} kWh/m²/year`,
         },
         render: (showRoofOnly) => [
           renderPalette({
             data: data,
             mask: showRoofOnly ? mask : undefined,
             colors: colors,
-            min: 0,
-            max: 1800,
+            min: minValue,
+            max: maxValue,
           }),
         ],
       };

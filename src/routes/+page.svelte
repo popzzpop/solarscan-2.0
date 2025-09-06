@@ -21,9 +21,12 @@
   const { Loader } = GMAPILoader;
 
   import { onMount } from 'svelte';
+  import type { BuildingInsightsResponse } from './solar';
+  import { findClosestBuilding } from './solar';
 
-  import SearchBar from './components/SearchBar.svelte';
-  import SolarDashboard from './components/SolarDashboard.svelte';
+  import PanelComparisonSidebar from './components/PanelComparisonSidebar.svelte';
+  import RightAnalysisSidebar from './components/RightAnalysisSidebar.svelte';
+  import SolarDataLayers from './components/SolarDataLayers.svelte';
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
@@ -31,7 +34,15 @@
     address: 'Misrah il-Parlament, Valletta VLT 2000, Malta',
   };
   let location: google.maps.LatLng | undefined;
-  const zoom = 19;
+  const zoom = 20;
+  
+  // Sidebar state
+  let leftSidebarOpen = false;
+  let rightSidebarOpen = true; // Start with right sidebar open
+
+  // Building data state
+  let buildingInsights: BuildingInsightsResponse | undefined;
+  let buildingDataLoading = false;
 
   // Initialize app.
   let mapElement: HTMLElement;
@@ -39,6 +50,7 @@
   let geometryLibrary: google.maps.GeometryLibrary;
   let mapsLibrary: google.maps.MapsLibrary;
   let placesLibrary: google.maps.PlacesLibrary;
+  let currentMarker: google.maps.Marker | undefined;
   onMount(async () => {
     // Load the Google Maps libraries.
     const loader = new Loader({ apiKey: googleMapsApiKey });
@@ -87,61 +99,97 @@
     map.addListener('click', (mapsMouseEvent: google.maps.MapMouseEvent) => {
       if (mapsMouseEvent.latLng) {
         location = mapsMouseEvent.latLng;
+        
+        // Center map on clicked location (no offset needed since sidebars are overlays)
+        map.panTo(mapsMouseEvent.latLng);
+        
+        // Remove previous marker if exists
+        if (currentMarker) {
+          currentMarker.setMap(null);
+        }
+        
+        // Add new marker at clicked location
+        currentMarker = new google.maps.Marker({
+          position: mapsMouseEvent.latLng,
+          map: map,
+          title: 'Selected Building',
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 8,
+            fillColor: '#3B82F6',
+            fillOpacity: 0.8,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 2
+          }
+        });
+        
+        leftSidebarOpen = true; // Open left sidebar when building is clicked
+        rightSidebarOpen = true; // Also ensure right sidebar is open
+        
+        // Load building data
+        loadBuildingData();
       }
     });
   });
+
+  // Load building data when location changes
+  async function loadBuildingData() {
+    if (!location || buildingDataLoading) return;
+    
+    buildingInsights = undefined;
+    buildingDataLoading = true;
+
+    try {
+      buildingInsights = await findClosestBuilding(location, googleMapsApiKey);
+    } catch (error: any) {
+      console.error('Failed to load building data:', error);
+    } finally {
+      buildingDataLoading = false;
+    }
+  }
 </script>
 
-<!-- Top bar -->
-<div class="flex flex-row h-full">
-  <!-- Main map -->
-  <div bind:this={mapElement} class="w-full" />
+<!-- Full-width map -->
+<div bind:this={mapElement} class="w-full h-full" />
 
-  <!-- Side bar -->
-  <aside class="flex-none md:w-[500px] w-80 p-2 pt-3 overflow-auto">
-    <div class="flex flex-col space-y-2 h-full">
-      {#if placesLibrary && map}
-        <SearchBar bind:location {placesLibrary} {map} initialValue={defaultPlace.name} />
-      {/if}
+<!-- Floating button to reopen left sidebar -->
+{#if location && !leftSidebarOpen}
+  <button 
+    on:click={() => leftSidebarOpen = true}
+    class="fixed top-4 left-4 z-40 bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-4 py-3 rounded-lg shadow-lg font-semibold transition-all duration-200 transform hover:scale-105"
+  >
+    📊 Compare Panels
+  </button>
+{/if}
 
-      <!-- Header Section -->
-      <div class="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 rounded-lg mb-4">
-        <h1 class="text-2xl font-bold mb-2">🌞 SolarScan Malta</h1>
-        <p class="text-lg">Professional Solar Analysis & Installation Services</p>
-        <p class="text-sm mt-2 opacity-90">Discover your solar potential and start saving with Malta's feed-in tariffs</p>
-      </div>
+<!-- Floating button to reopen right sidebar -->
+{#if !rightSidebarOpen}
+  <button 
+    on:click={() => rightSidebarOpen = true}
+    class="fixed top-4 right-4 z-40 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white px-4 py-3 rounded-lg shadow-lg font-semibold transition-all duration-200 transform hover:scale-105"
+  >
+    🌞 Solar Analysis
+  </button>
+{/if}
 
-      <!-- Quick Instructions -->
-      <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
-        <p class="text-blue-800 font-semibold mb-2">🔍 How to get your solar analysis:</p>
-        <p class="text-blue-700 text-sm">Search your address above or click directly on your building on the map</p>
-      </div>
+<!-- Floating Solar Data Visualization Panel -->
+{#if buildingInsights && map}
+  <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-30 max-w-md">
+    <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} />
+  </div>
+{/if}
 
-      {#if location}
-        <SolarDashboard {location} {map} {geometryLibrary} {googleMapsApiKey} />
-      {/if}
+<!-- Left Panel Comparison Sidebar -->
+<PanelComparisonSidebar bind:isOpen={leftSidebarOpen} />
 
-      <div class="grow" />
-
-      <!-- Contact CTA -->
-      <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-        <p class="text-green-800 font-semibold mb-3">Ready to Go Solar?</p>
-        <a href="tel:+35621234567" class="block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold mb-2 w-full transition-colors duration-200">
-          📞 Call Now: +356 2123 4567
-        </a>
-        <a href="https://wa.me/35679123456?text=Hi, I'm interested in a solar installation quote" class="block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold w-full transition-colors duration-200">
-          💬 WhatsApp Quote
-        </a>
-        <div class="mt-3 pt-3 border-t border-green-200">
-          <p class="text-xs text-gray-600">
-            🇲🇹 Professional Solar Installation Services in Malta<br>
-            <span class="text-green-700 font-semibold">Licensed • Insured • Government Grant Approved</span>
-          </p>
-          <p class="text-xs text-blue-600 mt-1">
-            ⚡ Free consultation • 25-year warranty • BOV financing available
-          </p>
-        </div>
-      </div>
-    </div>
-  </aside>
-</div>
+<!-- Right Analysis Sidebar -->
+<RightAnalysisSidebar 
+  bind:isOpen={rightSidebarOpen} 
+  {location} 
+  {map} 
+  {geometryLibrary} 
+  {placesLibrary}
+  {googleMapsApiKey} 
+  {buildingInsights} 
+  {buildingDataLoading} 
+/>

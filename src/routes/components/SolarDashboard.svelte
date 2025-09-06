@@ -1,27 +1,22 @@
 <script lang="ts">
-  import type { BuildingInsightsResponse, DataLayersResponse } from '../solar';
-  import { findClosestBuilding, getDataLayerUrls } from '../solar';
+  import type { BuildingInsightsResponse } from '../solar';
   import { findSolarConfig, showMoney, showNumber } from '../utils';
-  import { getLayer } from '../layer';
   import FeedInTariffCalculator from './FeedInTariffCalculator.svelte';
   import FinancingCalculator from './FinancingCalculator.svelte';
   import SolarIrradiationDisplay from './SolarIrradiationDisplay.svelte';
-  import SolarDataLayers from './SolarDataLayers.svelte';
 
   export let location: google.maps.LatLng;
   export let map: google.maps.Map; // Used for future map interaction features
   export let geometryLibrary: google.maps.GeometryLibrary; // Used for future geometry calculations
   export let googleMapsApiKey: string;
-
-  let buildingInsights: BuildingInsightsResponse | undefined;
-  let requestSent = false;
-  let requestError: string | undefined;
+  export let buildingInsights: BuildingInsightsResponse | undefined;
+  export let buildingDataLoading: boolean;
 
   // User settings for Malta market
   let monthlyEnergyBill = 100; // €100 monthly average
   let energyCostPerKwh = 0.15; // €0.15/kWh
   let panelCapacityWatts = 450; // 450W panels
-  let installationCostPerWatt = 1.2; // €1.20/Watt installed
+  let installationCostPerPanel = 120; // €120 per panel installed
   let dcToAcDerate = 0.85;
 
   // Derived calculations
@@ -53,32 +48,12 @@
     const panelCapacityRatio = panelCapacityWatts / buildingInsights.solarPotential.panelCapacityWatts;
     
     installationSizeKw = (config.panelsCount * panelCapacityWatts) / 1000;
-    installationCost = installationSizeKw * 1000 * installationCostPerWatt;
+    installationCost = config.panelsCount * installationCostPerPanel;
     yearlyProduction = config.yearlyEnergyDcKwh * panelCapacityRatio * dcToAcDerate;
     energyCovered = yearlyProduction / yearlyKwhConsumption;
   }
 
 
-  // Load building data when location changes
-  $: if (location) {
-    loadBuildingData();
-  }
-
-  async function loadBuildingData() {
-    if (requestSent) return;
-    
-    buildingInsights = undefined;
-    requestError = undefined;
-    requestSent = true;
-
-    try {
-      buildingInsights = await findClosestBuilding(location, googleMapsApiKey);
-    } catch (error: any) {
-      requestError = error.message || 'Failed to load building data';
-    } finally {
-      requestSent = false;
-    }
-  }
 
   function updateEnergyBill(event: Event) {
     const target = event.target as HTMLInputElement;
@@ -87,25 +62,17 @@
 </script>
 
 <div class="space-y-6">
-  {#if requestSent}
+  {#if buildingDataLoading}
     <div class="flex items-center justify-center py-8">
       <div class="animate-pulse text-blue-600">
         <p class="font-semibold">🔄 Analyzing your building...</p>
         <p class="text-sm text-gray-600">This may take a few seconds</p>
       </div>
     </div>
-  {:else if requestError}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-      <p class="text-red-800 font-semibold">❌ Analysis Error</p>
-      <p class="text-red-700 text-sm">{requestError}</p>
-      <p class="text-red-600 text-xs mt-2">Please try clicking on a different building on the map</p>
-    </div>
   {:else if buildingInsights}
     <!-- Solar Irradiation Analysis - Top Priority -->
     <SolarIrradiationDisplay {buildingInsights} />
 
-    <!-- Google Solar API Data Layers Visualization -->
-    <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} />
 
     <!-- Quick Settings Panel -->
     <div class="bg-white border border-gray-200 rounded-lg p-4">
