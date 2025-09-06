@@ -23,7 +23,7 @@
   import { onMount } from 'svelte';
 
   import SearchBar from './components/SearchBar.svelte';
-  import Sections from './sections/Sections.svelte';
+  import SolarDashboard from './components/SolarDashboard.svelte';
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
@@ -98,38 +98,50 @@
   <div bind:this={mapElement} class="w-full" />
 
   <!-- Side bar -->
-  <aside class="flex-none md:w-96 w-80 p-2 pt-3 overflow-auto">
+  <aside class="flex-none md:w-[500px] w-80 p-2 pt-3 overflow-auto">
     <div class="flex flex-col space-y-2 h-full">
       {#if placesLibrary && map}
         <SearchBar bind:location {placesLibrary} {map} initialValue={defaultPlace.name} />
       {/if}
 
-      <div class="p-4 surface-variant outline-text rounded-lg space-y-3">
-        <p>
-          Our advanced <b>Solar Analysis API</b> provides comprehensive solar potential insights for Malta's unique environment.
-        </p>
+      <!-- Header Section -->
+      <div class="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 rounded-lg mb-4">
+        <h1 class="text-2xl font-bold mb-2">🌞 SolarScan Malta</h1>
+        <p class="text-lg">Professional Solar Analysis & Installation Services</p>
+        <p class="text-sm mt-2 opacity-90">Discover your solar potential and start saving with Malta's feed-in tariffs</p>
+      </div>
 
-        <p>
-          <b>How to analyze a building:</b>
-        </p>
-        <ul class="space-y-1">
-          <li>🔍 Use the search bar to find an address</li>
-          <li>👆 <b>Or simply click directly on any building on the map</b></li>
-        </ul>
-        <p class="text-sm">
-          Perfect for Malta's unique street layout where address geocoding can be unreliable!
-        </p>
+      <!-- Quick Instructions -->
+      <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+        <p class="text-blue-800 font-semibold mb-2">🔍 How to get your solar analysis:</p>
+        <p class="text-blue-700 text-sm">Search your address above or click directly on your building on the map</p>
       </div>
 
       {#if location}
-        <Sections {location} {map} {geometryLibrary} {googleMapsApiKey} />
+        <SolarDashboard {location} {map} {geometryLibrary} {googleMapsApiKey} />
       {/if}
 
       <div class="grow" />
 
-      <span class="pb-4 text-center outline-text label-small">
-        Developed by Ghawdex Engineering for Malta 🇲🇹
-      </span>
+      <!-- Contact CTA -->
+      <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+        <p class="text-green-800 font-semibold mb-3">Ready to Go Solar?</p>
+        <a href="tel:+35621234567" class="block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold mb-2 w-full transition-colors duration-200">
+          📞 Call Now: +356 2123 4567
+        </a>
+        <a href="https://wa.me/35679123456?text=Hi, I'm interested in a solar installation quote" class="block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold w-full transition-colors duration-200">
+          💬 WhatsApp Quote
+        </a>
+        <div class="mt-3 pt-3 border-t border-green-200">
+          <p class="text-xs text-gray-600">
+            🇲🇹 Professional Solar Installation Services in Malta<br>
+            <span class="text-green-700 font-semibold">Licensed • Insured • Government Grant Approved</span>
+          </p>
+          <p class="text-xs text-blue-600 mt-1">
+            ⚡ Free consultation • 25-year warranty • BOV financing available
+          </p>
+        </div>
+      </div>
     </div>
   </aside>
 </div>

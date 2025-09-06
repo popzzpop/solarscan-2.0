@@ -1,10 +1,16 @@
-# 🌞 Ghawdex Engineering Solar Analyzer for Malta 🇲🇹
+# 🌞 SolarScan Malta - Professional Solar Analysis & Installation Services 🇲🇹
 
-## Description
+## About SolarScan Malta
 
-Ghawdex Engineering's professional Solar Analyzer is a comprehensive web application designed specifically for solar potential analysis in Malta. Built with precision and tailored for the Maltese market, this tool leverages advanced solar API technologies to provide detailed solar potential insights.
+SolarScan Malta is the premier professional solar analysis platform designed specifically for the Maltese market. Our advanced web application provides accurate solar potential assessments, feed-in tariff calculations, and comprehensive financial projections to help property owners make informed decisions about solar installations.
 
-The application offers comprehensive solar analysis features including rooftop solar potential assessment, environmental impact evaluations, and financial projections tailored for Malta's unique geographical and regulatory environment.
+## Key Features
+
+✨ **Instant Solar Analysis** - Click on any building in Malta to get detailed solar potential
+💰 **Feed-in Tariff Calculator** - Compare high (€0.15/kWh) vs grant-eligible (€0.105/kWh) rates  
+🏦 **BOV Financing Integration** - Calculate loan payments with 0.5% interest rates
+📊 **25-Year Financial Projections** - Complete ROI analysis and payback periods
+🎯 **Professional Installation Quotes** - Direct contact with licensed installers
 
 ## Requirements
 
