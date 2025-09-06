@@ -1,21 +1,15 @@
 <script lang="ts">
   import type { BuildingInsightsResponse } from '../solar';
-  import SearchBar from './SearchBar.svelte';
   import SolarDashboard from './SolarDashboard.svelte';
 
   export let isOpen = true;
   export let location: google.maps.LatLng | undefined;
   export let map: google.maps.Map | undefined;
   export let geometryLibrary: google.maps.GeometryLibrary | undefined;
-  export let placesLibrary: google.maps.PlacesLibrary | undefined;
   export let googleMapsApiKey: string;
   export let buildingInsights: BuildingInsightsResponse | undefined;
   export let buildingDataLoading: boolean;
 
-  const defaultPlace = {
-    name: 'Place your Address',
-    address: 'Misrah il-Parlament, Valletta VLT 2000, Malta',
-  };
 
   function closeSidebar() {
     isOpen = false;
@@ -34,14 +28,10 @@
   </div>
 
   <div class="p-4 space-y-4">
-    {#if placesLibrary && map}
-      <SearchBar bind:location {placesLibrary} {map} initialValue={defaultPlace.name} />
-    {/if}
-
-    <!-- Quick Instructions -->
-    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-      <p class="text-blue-800 font-semibold mb-2">🔍 How to get your solar analysis:</p>
-      <p class="text-blue-700 text-sm">Search your address above or click directly on your building on the map</p>
+    <!-- Welcome message -->
+    <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+      <p class="text-green-800 font-semibold mb-2">✨ Your Solar Analysis</p>
+      <p class="text-green-700 text-sm">Detailed insights and calculations for your property</p>
     </div>
 
     {#if location}

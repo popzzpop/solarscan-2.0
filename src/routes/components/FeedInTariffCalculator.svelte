@@ -9,25 +9,24 @@
   const fitLowRate = 0.105; // €0.105/kWh with government grant
   const fitHighRate = 0.15; // €0.15/kWh without government grant (but higher income)
   const energyCostPerKwh = 0.15; // Standard electricity cost
+  const governmentGrantRate = 0.50; // 50% government grant for Low FiT scenario
+  
+  // Effective installation costs for each scenario
+  $: installationCostLow = installationCost * (1 - governmentGrantRate); // 50% grant applied
+  $: installationCostHigh = installationCost; // No grant
 
-  // Calculate excess energy (energy not consumed by household)
-  $: excessEnergyYearly = Math.max(0, yearlyProduction - yearlyKwhConsumption);
+  // Calculate FIT income - ALL production is sold to grid at FiT rate
+  $: fitIncomeLow = yearlyProduction * fitLowRate;
+  $: fitIncomeHigh = yearlyProduction * fitHighRate;
   
-  // Calculate FIT income for both scenarios
-  $: fitIncomeLow = excessEnergyYearly * fitLowRate;
-  $: fitIncomeHigh = excessEnergyYearly * fitHighRate;
-  
-  // Calculate energy cost savings (for consumed solar energy)
-  $: consumedSolarEnergy = Math.min(yearlyProduction, yearlyKwhConsumption);
-  $: energySavings = consumedSolarEnergy * energyCostPerKwh;
-  
-  // Total annual benefit
-  $: totalAnnualBenefitLow = fitIncomeLow + energySavings;
-  $: totalAnnualBenefitHigh = fitIncomeHigh + energySavings;
+  // No energy savings - all consumption is still bought from grid at €0.15/kWh
+  // Total annual benefit is just the FiT income (compared to no solar baseline)
+  $: totalAnnualBenefitLow = fitIncomeLow;
+  $: totalAnnualBenefitHigh = fitIncomeHigh;
 
   // Simple payback period
-  $: paybackPeriodLow = installationCost / totalAnnualBenefitLow;
-  $: paybackPeriodHigh = installationCost / totalAnnualBenefitHigh;
+  $: paybackPeriodLow = installationCostLow / totalAnnualBenefitLow;
+  $: paybackPeriodHigh = installationCostHigh / totalAnnualBenefitHigh;
 
   // Calculate 25-year cash flow data for chart
   $: cashFlowData = calculateCashFlowData();
@@ -66,10 +65,10 @@
     // No Solar: Just cumulative electricity bills (negative)
     const noSolarCashFlow = years.map(year => -(year * yearlyKwhConsumption * energyCostPerKwh));
     
-    // Solar scenarios: Start with -installationCost, then add annual benefits with degradation
+    // Solar scenarios: Start with appropriate installation cost, then add annual benefits with degradation
     const lowFitCashFlow = years.map(year => {
-      if (year === 0) return -installationCost;
-      let cumulative = -installationCost;
+      if (year === 0) return -installationCostLow;
+      let cumulative = -installationCostLow;
       for (let y = 1; y <= year; y++) {
         const degradationFactor = Math.pow(0.98, y - 1);
         cumulative += totalAnnualBenefitLow * degradationFactor;
@@ -78,8 +77,8 @@
     });
     
     const highFitCashFlow = years.map(year => {
-      if (year === 0) return -installationCost;
-      let cumulative = -installationCost;
+      if (year === 0) return -installationCostHigh;
+      let cumulative = -installationCostHigh;
       for (let y = 1; y <= year; y++) {
         const degradationFactor = Math.pow(0.98, y - 1);
         cumulative += totalAnnualBenefitHigh * degradationFactor;
@@ -143,8 +142,8 @@
     return total;
   }
 
-  $: total25YearBenefitLow = calculateTotal25Years(totalAnnualBenefitLow) - installationCost;
-  $: total25YearBenefitHigh = calculateTotal25Years(totalAnnualBenefitHigh) - installationCost;
+  $: total25YearBenefitLow = calculateTotal25Years(totalAnnualBenefitLow) - installationCostLow;
+  $: total25YearBenefitHigh = calculateTotal25Years(totalAnnualBenefitHigh) - installationCostHigh;
 </script>
 
 <div class="bg-white border border-gray-200 rounded-lg p-4">
@@ -165,14 +164,17 @@
         <tr class="border-b border-gray-200">
           <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Installation Cost</td>
           <td class="border border-gray-300 px-4 py-3 text-center text-red-600">€0</td>
-          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{showMoney(installationCost)}</td>
-          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(installationCost)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">
+            {showMoney(installationCostLow)}
+            <div class="text-xs text-gray-500 mt-1">50% govt grant</div>
+          </td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(installationCostHigh)}</td>
         </tr>
         <tr class="border-b border-gray-200">
           <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Annual Bill Savings</td>
           <td class="border border-gray-300 px-4 py-3 text-center text-red-600">€0</td>
-          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{showMoney(energySavings)}</td>
-          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(energySavings)}</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">€0<br><span class="text-xs text-gray-500">All production sold</span></td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">€0<br><span class="text-xs text-gray-500">All production sold</span></td>
         </tr>
         <tr class="border-b border-gray-200">
           <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Annual FiT Income</td>

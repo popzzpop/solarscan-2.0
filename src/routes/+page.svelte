@@ -27,6 +27,8 @@
   import PanelComparisonSidebar from './components/PanelComparisonSidebar.svelte';
   import RightAnalysisSidebar from './components/RightAnalysisSidebar.svelte';
   import SolarDataLayers from './components/SolarDataLayers.svelte';
+  import FloatingSearchBar from './components/FloatingSearchBar.svelte';
+  import AutoShowcase from './components/AutoShowcase.svelte';
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
@@ -38,7 +40,11 @@
   
   // Sidebar state
   let leftSidebarOpen = false;
-  let rightSidebarOpen = true; // Start with right sidebar open
+  let rightSidebarOpen = false; // Start closed for demo
+
+  // Demo state
+  let showcaseComponent: AutoShowcase;
+  let showDataLayers = false;
 
   // Building data state
   let buildingInsights: BuildingInsightsResponse | undefined;
@@ -103,34 +109,93 @@
         // Center map on clicked location (no offset needed since sidebars are overlays)
         map.panTo(mapsMouseEvent.latLng);
         
-        // Remove previous marker if exists
-        if (currentMarker) {
-          currentMarker.setMap(null);
-        }
-        
-        // Add new marker at clicked location
-        currentMarker = new google.maps.Marker({
-          position: mapsMouseEvent.latLng,
-          map: map,
-          title: 'Selected Building',
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: 8,
-            fillColor: '#3B82F6',
-            fillOpacity: 0.8,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 2
-          }
-        });
-        
         leftSidebarOpen = true; // Open left sidebar when building is clicked
         rightSidebarOpen = true; // Also ensure right sidebar is open
         
-        // Load building data
-        loadBuildingData();
+        // Use the same flow as search bar - trigger showcase (includes marker creation)
+        handleLocationSelected();
       }
     });
   });
+
+  // Create or update marker at current location
+  function createMarker() {
+    if (!location || !map) return;
+    
+    // Remove previous marker if exists
+    if (currentMarker) {
+      currentMarker.setMap(null);
+    }
+    
+    // Add new marker at location
+    currentMarker = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: 'Selected Building',
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        scale: 8,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.8,
+        strokeColor: '#FFFFFF',
+        strokeWeight: 2
+      }
+    });
+  }
+
+  // Handle location selection from floating search
+  async function handleLocationSelected() {
+    if (!location) return;
+    
+    // Create marker for selected location
+    createMarker();
+    
+    buildingDataLoading = true;
+
+    try {
+      buildingInsights = await findClosestBuilding(location, googleMapsApiKey);
+      
+      // Start the automated showcase
+      if (buildingInsights) {
+        setTimeout(() => {
+          if (showcaseComponent) {
+            showcaseComponent.startShowcase();
+          } else {
+            // If showcase component isn't ready, show data layers immediately
+            console.log('Showcase component not ready, showing layers directly');
+            showDataLayers = true;
+          }
+        }, 500);
+      }
+    } catch (error: any) {
+      console.error('Failed to load building data:', error);
+    } finally {
+      buildingDataLoading = false;
+    }
+  }
+
+  // Handle showcase completion
+  function handleShowcaseComplete() {
+    showDataLayers = true;
+    
+    // Auto-open sidebars with a stagger effect
+    setTimeout(() => {
+      rightSidebarOpen = true;
+    }, 500);
+    
+    setTimeout(() => {
+      leftSidebarOpen = true;
+    }, 1000);
+  }
+
+  // Fallback - ensure data layers show after some time even if showcase doesn't complete
+  $: if (buildingInsights && !showDataLayers) {
+    setTimeout(() => {
+      if (buildingInsights && !showDataLayers) {
+        showDataLayers = true;
+      }
+    }, 20000); // Show after 20 seconds as fallback
+  }
 
   // Load building data when location changes
   async function loadBuildingData() {
@@ -172,8 +237,29 @@
   </button>
 {/if}
 
-<!-- Floating Solar Data Visualization Panel -->
+<!-- Floating Search Bar -->
+{#if placesLibrary && map}
+  <FloatingSearchBar 
+    bind:location 
+    {placesLibrary} 
+    {map} 
+    onLocationSelected={handleLocationSelected}
+  />
+{/if}
+
+<!-- Automated Showcase -->
 {#if buildingInsights && map}
+  <AutoShowcase 
+    bind:this={showcaseComponent}
+    {buildingInsights} 
+    {map} 
+    {googleMapsApiKey}
+    onShowcaseComplete={handleShowcaseComplete}
+  />
+{/if}
+
+<!-- Floating Solar Data Visualization Panel (after showcase) -->
+{#if buildingInsights && map && showDataLayers}
   <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-30 max-w-md">
     <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} />
   </div>
@@ -188,7 +274,6 @@
   {location} 
   {map} 
   {geometryLibrary} 
-  {placesLibrary}
   {googleMapsApiKey} 
   {buildingInsights} 
   {buildingDataLoading} 

@@ -7,6 +7,7 @@
   export let buildingInsights: BuildingInsightsResponse;
   export let map: google.maps.Map;
   export let googleMapsApiKey: string;
+  export let showcaseMode = false; // Enable faster animations for showcase
 
   // Available data layers from Google Solar API
   const dataLayerOptions: Record<LayerId | 'none', {name: string, description: string, animated: boolean}> = {
@@ -23,28 +24,30 @@
                      'July', 'August', 'September', 'October', 'November', 'December'];
 
   // State variables
-  let selectedLayerId: LayerId | 'none' = 'annualFlux';
+  export let selectedLayerId: LayerId | 'none' = 'annualFlux';
+  export let isLoading = false; // Export loading state for external monitoring
+  export let selectedMonth = 0; // Export current month for showcase indicator
+  export let selectedHour = 12; // Export current hour for showcase indicator
   let dataLayersResponse: DataLayersResponse | undefined;
   let currentLayer: Layer | undefined;
   let overlays: google.maps.GroundOverlay[] = [];
-  let isLoading = false;
   let error: string | undefined;
 
   // Animation state
   let currentFrame = 0;
   let totalFrames = 0;
   let animationInterval: NodeJS.Timeout | undefined;
-  let animationSpeed = 1000; // ms per frame - fixed speed
   let opacity = 0.7;
   let showRoofOnly = false;
+  
+  // Dynamic animation speed based on showcase mode
+  $: animationSpeed = showcaseMode ? 333 : 1000; // Perfect timing for 2 cycles in showcase
 
   // UI state for compact design
   let isMinimized = false;
 
   // Time controls for animations
-  let selectedMonth = 0; // 0-11
   let selectedDay = 15; // 1-365, default middle of month
-  let selectedHour = 12; // 0-23, default noon
 
   // Load data layers when building insights change
   $: if (buildingInsights) {
@@ -114,8 +117,14 @@
         totalFrames = 12;
         currentFrame = selectedMonth;
       } else if (layerId === 'hourlyShade') {
-        totalFrames = 24;
-        currentFrame = selectedHour;
+        if (showcaseMode) {
+          totalFrames = 16; // Only daylight hours (5AM-8PM)
+          currentFrame = 0; // Start at frame 0 (which maps to 5AM)
+          selectedHour = 5; // Start at 5AM
+        } else {
+          totalFrames = 24; // Full day in normal mode
+          currentFrame = selectedHour;
+        }
       } else {
         totalFrames = 1;
         currentFrame = 0;
@@ -182,7 +191,12 @@
       if (selectedLayerId === 'monthlyFlux') {
         selectedMonth = currentFrame;
       } else if (selectedLayerId === 'hourlyShade') {
-        selectedHour = currentFrame;
+        if (showcaseMode) {
+          // Map frame 0-15 to hours 5-20 (5AM-8PM)
+          selectedHour = currentFrame + 5;
+        } else {
+          selectedHour = currentFrame;
+        }
       }
       
       updateOverlay();
@@ -204,7 +218,12 @@
       if (selectedLayerId === 'monthlyFlux') {
         selectedMonth = frame;
       } else if (selectedLayerId === 'hourlyShade') {
-        selectedHour = frame;
+        if (showcaseMode) {
+          // Map frame 0-15 to hours 5-20 (5AM-8PM)
+          selectedHour = frame + 5;
+        } else {
+          selectedHour = frame;
+        }
       }
       updateOverlay();
     }
