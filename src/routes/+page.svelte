@@ -27,7 +27,7 @@
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
-    name: 'House of Representatives',
+    name: 'Place your Address',
     address: 'Misrah il-Parlament, Valletta VLT 2000, Malta',
   };
   let location: google.maps.LatLng | undefined;
@@ -102,16 +102,6 @@
       {/if}
 
       <div class="grow" />
-
-      <div class="flex flex-col items-center w-full">
-        <md-text-button
-          href="https://github.com/ghawdex-engineering/solar-analyzer-malta"
-          target="_blank"
-        >
-          View code on GitHub
-          <img slot="icon" src="github-mark.svg" alt="GitHub" width="16" height="16" />
-        </md-text-button>
-      </div>
 
       <span class="pb-4 text-center outline-text label-small">
         Developed by Ghawdex Engineering for Malta 🇲🇹

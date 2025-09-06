@@ -20,6 +20,7 @@
     value: string;
     units?: string;
     icon?: string;
+    color?: string;
   }[] = [];
 </script>
 
@@ -32,7 +33,7 @@
       <th class="pl-2 text-left">
         {row.name}
       </th>
-      <td class="pl-2 text-right">
+      <td class="pl-2 text-right" class:text-green-600={row.color === 'green'} class:text-red-600={row.color === 'red'}>
         <span>{row.value.toString()}</span>
         <span class="body-small">{row.units ?? ''}</span>
       </td>

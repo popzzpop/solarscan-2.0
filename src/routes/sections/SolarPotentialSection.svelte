@@ -37,11 +37,14 @@
   export let expandedSection: string;
   export let configId: number;
   export let monthlyAverageEnergyBillInput: number;
+  export let monthlyKwhInput: number;
   export let energyCostPerKwhInput: number;
   export let panelCapacityWattsInput: number;
   export let dcToAcDerateInput: number;
   export let solarPanelConfigs: SolarPanelConfig[];
   export let defaultPanelCapacityWatts: number;
+  export let updateKwhFromBill: () => void;
+  export let updateBillFromKwh: () => void;
 
   const icon = 'payments';
   const title = 'Solar Potential analysis';
@@ -55,7 +58,7 @@
   let energyCostPerKwh = 0.15; // €0.15/kWh (15 cents)
   let panelCapacityWatts = 450; // 450W panels
   let solarIncentives: number = 0; // No incentives default
-  let installationCostPerWatt: number = 1.0; // €1.00/Watt
+  let installationCostPerWatt: number = 0.60; // €0.60/Watt
   let installationLifeSpan: number = 25; // 25 years (European standard)
 
   // Malta Feed-in Tariff rates (€/kWh)
@@ -300,7 +303,7 @@ $: savingsWithoutGrant = totalCostWithoutSolar - totalCostWithSolarWithoutGrant 
   );
 
   function updateConfig() {
-    monthlyKwhEnergyConsumption = monthlyAverageEnergyBillInput / energyCostPerKwhInput;
+    monthlyKwhEnergyConsumption = monthlyKwhInput;
     yearlyKwhEnergyConsumption = monthlyKwhEnergyConsumption * 12;
     panelCapacityRatio = panelCapacityWattsInput / defaultPanelCapacityWatts;
     configId = findSolarConfig(
@@ -342,7 +345,15 @@ $: savingsWithoutGrant = totalCostWithoutSolar - totalCostWithSolarWithoutGrant 
       bind:value={monthlyAverageEnergyBillInput}
       icon="credit_card"
       label="Monthly average energy bill"
-      onChange={updateConfig}
+      onChange={() => { updateKwhFromBill(); updateConfig(); }}
+    />
+
+    <InputNumber
+      bind:value={monthlyKwhInput}
+      icon="electrical_services"
+      label="Monthly kWh usage"
+      suffix="kWh"
+      onChange={() => { updateBillFromKwh(); updateConfig(); }}
     />
 
     <div class="inline-flex items-center space-x-2">
@@ -504,31 +515,37 @@ $: savingsWithoutGrant = totalCostWithoutSolar - totalCostWithSolarWithoutGrant 
               icon: 'wallet',
               name: 'Cost without solar',
               value: showMoney(totalCostWithoutSolar),
+              color: 'red',
             },
             {
               icon: 'request_quote',
               name: 'Solar installation cost',
               value: showMoney(installationCostTotal),
+              color: 'red',
             },
             {
               icon: 'euro_symbol',
-              name: 'FIT income (€0.105/kWh)',
+              name: 'Low FIT income (€0.105/kWh)',
               value: showMoney(totalFitIncomeWithGrant),
+              color: 'green',
             },
             {
               icon: 'euro_symbol',
-              name: 'FIT income (€0.15/kWh)',
+              name: 'High FIT income (€0.15/kWh)',
               value: showMoney(totalFitIncomeWithoutGrant),
+              color: 'green',
             },
             {
               icon: 'trending_up',
-              name: 'Savings with FIT (€0.105/kWh)',
+              name: 'Savings with Low FIT (€0.105/kWh)',
               value: showMoney(savingsWithGrant),
+              color: savingsWithGrant >= 0 ? 'green' : 'red',
             },
             {
               icon: 'trending_up',
-              name: 'Savings with FIT (€0.15/kWh)',
+              name: 'Savings with High FIT (€0.15/kWh)',
               value: showMoney(savingsWithoutGrant),
+              color: savingsWithoutGrant >= 0 ? 'green' : 'red',
             },
             {
               icon: 'balance',
@@ -540,6 +557,7 @@ $: savingsWithoutGrant = totalCostWithoutSolar - totalCostWithSolarWithoutGrant 
                   ? `${breakEvenYearWithoutGrant + new Date().getFullYear() + 1} (${breakEvenYearWithoutGrant + 1}y)`
                   : '--',
               units: 'years',
+              color: (breakEvenYearWithGrant >= 0 || breakEvenYearWithoutGrant >= 0) ? 'green' : 'red',
             },
           ]}
         />

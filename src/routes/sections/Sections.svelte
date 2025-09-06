@@ -36,9 +36,19 @@
 
   // User settings - Updated for European market
   let monthlyAverageEnergyBillInput = 50; // €50 monthly average
+  let monthlyKwhInput = 333; // (50 / 0.15) kWh monthly
   let panelCapacityWattsInput = 450; // 450W panels
   let energyCostPerKwhInput = 0.15; // €0.15/kWh (15 cents)
   let dcToAcDerateInput = 0.85;
+
+  // Bidirectional interconnection logic - update one field when the other changes
+  function updateKwhFromBill() {
+    monthlyKwhInput = Number((monthlyAverageEnergyBillInput / energyCostPerKwhInput).toFixed(0));
+  }
+
+  function updateBillFromKwh() {
+    monthlyAverageEnergyBillInput = Number((monthlyKwhInput * energyCostPerKwhInput).toFixed(2));
+  }
 
   // Find the config that covers the yearly energy consumption.
   let yearlyKwhEnergyConsumption: number;
@@ -88,11 +98,14 @@
       bind:expandedSection
       bind:configId
       bind:monthlyAverageEnergyBillInput
+      bind:monthlyKwhInput
       bind:energyCostPerKwhInput
       bind:panelCapacityWattsInput
       bind:dcToAcDerateInput
       solarPanelConfigs={buildingInsights.solarPotential.solarPanelConfigs}
       defaultPanelCapacityWatts={buildingInsights.solarPotential.panelCapacityWatts}
+      {updateKwhFromBill}
+      {updateBillFromKwh}
     />
   {/if}
 </div>
