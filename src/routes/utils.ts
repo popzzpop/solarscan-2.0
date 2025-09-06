@@ -21,7 +21,7 @@ export function showNumber(x: number) {
 }
 
 export function showMoney(amount: number) {
-  return `$${amount.toLocaleString(undefined, {
+  return `€${amount.toLocaleString('de-DE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

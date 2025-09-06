@@ -54,13 +54,17 @@
   let panelsCount = 20;
   let yearlyEnergyDcKwh = 12000;
 
-  // Basic settings
-  let monthlyAverageEnergyBill: number = 300;
-  let energyCostPerKwh = 0.31;
+  // Basic settings - Updated for European market
+  let monthlyAverageEnergyBill: number = 200; // €200 monthly average
+  let energyCostPerKwh = 0.28; // €0.28/kWh (European average)
   let panelCapacityWatts = 400;
-  let solarIncentives: number = 7000;
-  let installationCostPerWatt: number = 4.0;
-  let installationLifeSpan: number = 20;
+  let solarIncentives: number = 4000; // €4000 incentives (lower than US)
+  let installationCostPerWatt: number = 2.5; // €2.50/Watt (European average)
+  let installationLifeSpan: number = 25; // 25 years (European standard)
+
+  // Malta Feed-in Tariff rates (€/kWh)
+  const fitWithGrant = 0.105; // 10.5 cents with government grant
+  const fitWithoutGrant = 0.15; // 15 cents without government grant
 
   // Advanced settings
   let dcToAcDerate = 0.85;
@@ -94,18 +98,54 @@
   let remainingLifetimeUtilityBill: number = yearlyUtilityBillEstimates.reduce((x, y) => x + y, 0);
   let totalCostWithSolar: number =
     installationCostTotal + remainingLifetimeUtilityBill - solarIncentives;
-  console.log(`Cost with solar: $${totalCostWithSolar.toFixed(2)}`);
+  console.log(`Cost with solar: €${totalCostWithSolar.toFixed(2)}`);
 
   // Cost without solar for installation life span
   let yearlyCostWithoutSolar: number[] = [...Array(installationLifeSpan).keys()].map(
     (year) => (monthlyAverageEnergyBill * 12 * costIncreaseFactor ** year) / discountRate ** year,
   );
   let totalCostWithoutSolar: number = yearlyCostWithoutSolar.reduce((x, y) => x + y, 0);
-  console.log(`Cost without solar: $${totalCostWithoutSolar.toFixed(2)}`);
+  console.log(`Cost without solar: €${totalCostWithoutSolar.toFixed(2)}`);
 
   // Savings with solar for installation life span
   let savings: number = totalCostWithoutSolar - totalCostWithSolar;
-  console.log(`Savings: $${savings.toFixed(2)} in ${installationLifeSpan} years`);
+  console.log(`Savings: €${savings.toFixed(2)} in ${installationLifeSpan} years`);
+
+  // FIT calculations - Excess energy production and income
+  let yearlyExcessEnergyKwh: number[] = yearlyProductionAcKwh.map(yearlyKwhProduced =>
+    Math.max(yearlyKwhProduced - yearlyKwhEnergyConsumption, 0)
+  );
+
+  // FIT income calculations for both scenarios
+  let yearlyFitIncomeWithGrant: number[] = yearlyExcessEnergyKwh.map(excessEnergy =>
+    excessEnergy * fitWithGrant
+  );
+
+  let yearlyFitIncomeWithoutGrant: number[] = yearlyExcessEnergyKwh.map(excessEnergy =>
+    excessEnergy * fitWithoutGrant
+  );
+
+  // Total FIT income discounted over lifetime
+  let totalFitIncomeWithGrant: number = yearlyFitIncomeWithGrant.reduce((sum, income, year) =>
+    sum + (income / discountRate ** year), 0
+  );
+
+  let totalFitIncomeWithoutGrant: number = yearlyFitIncomeWithoutGrant.reduce((sum, income, year) =>
+    sum + (income / discountRate ** year), 0
+  );
+
+  // Total costs with FIT for both scenarios
+  let totalCostWithSolarWithGrant: number = totalCostWithSolar - totalFitIncomeWithGrant;
+  let totalCostWithSolarWithoutGrant: number = totalCostWithSolar - totalFitIncomeWithoutGrant;
+
+  // Savings with FIT for both scenarios
+  let savingsWithGrant: number = totalCostWithoutSolar - totalCostWithSolarWithGrant;
+  let savingsWithoutGrant: number = totalCostWithoutSolar - totalCostWithSolarWithoutGrant;
+
+  console.log(`FIT Income (with grant): €${totalFitIncomeWithGrant.toFixed(2)}`);
+  console.log(`FIT Income (without grant): €${totalFitIncomeWithoutGrant.toFixed(2)}`);
+  console.log(`Savings with grant: €${savingsWithGrant.toFixed(2)}`);
+  console.log(`Savings without grant: €${savingsWithoutGrant.toFixed(2)}`);
   // [END solar_potential_calculations]
 
   // Reactive calculations
@@ -139,10 +179,33 @@
   $: totalCostWithoutSolar = yearlyCostWithoutSolar.reduce((x, y) => x + y, 0);
   $: savings = totalCostWithoutSolar - totalCostWithSolar;
 
+  // Reactive FIT calculations
+  $: yearlyExcessEnergyKwh = yearlyProductionAcKwh.map(yearlyKwhProduced =>
+    Math.max(yearlyKwhProduced - yearlyKwhEnergyConsumption, 0)
+  );
+  $: yearlyFitIncomeWithGrant = yearlyExcessEnergyKwh.map(excessEnergy =>
+    excessEnergy * fitWithGrant
+  );
+  $: yearlyFitIncomeWithoutGrant = yearlyExcessEnergyKwh.map(excessEnergy =>
+    excessEnergy * fitWithoutGrant
+  );
+  $: totalFitIncomeWithGrant = yearlyFitIncomeWithGrant.reduce((sum, income, year) =>
+    sum + (income / discountRate ** year), 0
+  );
+  $: totalFitIncomeWithoutGrant = yearlyFitIncomeWithoutGrant.reduce((sum, income, year) =>
+    sum + (income / discountRate ** year), 0
+  );
+  $: totalCostWithSolarWithGrant = totalCostWithSolar - totalFitIncomeWithGrant;
+  $: totalCostWithSolarWithoutGrant = totalCostWithSolar - totalFitIncomeWithoutGrant;
+  $: savingsWithGrant = totalCostWithoutSolar - totalCostWithSolarWithGrant;
+  $: savingsWithoutGrant = totalCostWithoutSolar - totalCostWithSolarWithoutGrant;
+
   let energyCovered: number;
   $: energyCovered = yearlyProductionAcKwh[0] / yearlyKwhEnergyConsumption;
 
   let breakEvenYear: number = -1;
+  let breakEvenYearWithGrant: number = -1;
+  let breakEvenYearWithoutGrant: number = -1;
   $: GoogleCharts.load(
     () => {
       if (!costChart) {
@@ -150,25 +213,56 @@
       }
       const year = new Date().getFullYear();
 
+      // Calculate cumulative costs for original analysis (no FIT)
       let costWithSolar = 0;
       const cumulativeCostsWithSolar = yearlyUtilityBillEstimates.map(
         (billEstimate, i) =>
           (costWithSolar +=
             i == 0 ? billEstimate + installationCostTotal - solarIncentives : billEstimate),
       );
+
+      // Calculate cumulative costs with FIT scenarios
+      let costWithGrant = 0;
+      const cumulativeCostsWithGrant = yearlyUtilityBillEstimates.map(
+        (billEstimate, i) => {
+          const netCost = i == 0 ? billEstimate + installationCostTotal - solarIncentives : billEstimate;
+          const fitIncome = yearlyFitIncomeWithGrant[i] / discountRate ** i;
+          return (costWithGrant += netCost - fitIncome);
+        },
+      );
+
+      let costWithoutGrant = 0;
+      const cumulativeCostsWithoutGrant = yearlyUtilityBillEstimates.map(
+        (billEstimate, i) => {
+          const netCost = i == 0 ? billEstimate + installationCostTotal - solarIncentives : billEstimate;
+          const fitIncome = yearlyFitIncomeWithoutGrant[i] / discountRate ** i;
+          return (costWithoutGrant += netCost - fitIncome);
+        },
+      );
+
       let costWithoutSolar = 0;
       const cumulativeCostsWithoutSolar = yearlyCostWithoutSolar.map(
         (cost) => (costWithoutSolar += cost),
       );
+
+      // Find break-even years
       breakEvenYear = cumulativeCostsWithSolar.findIndex(
         (costWithSolar, i) => costWithSolar <= cumulativeCostsWithoutSolar[i],
       );
+      breakEvenYearWithGrant = cumulativeCostsWithGrant.findIndex(
+        (costWithGrant, i) => costWithGrant <= cumulativeCostsWithoutSolar[i],
+      );
+      breakEvenYearWithoutGrant = cumulativeCostsWithoutGrant.findIndex(
+        (costWithoutGrant, i) => costWithoutGrant <= cumulativeCostsWithoutSolar[i],
+      );
 
       const data = google.visualization.arrayToDataTable([
-        ['Year', 'Solar', 'No solar'],
-        [year.toString(), 0, 0],
-        ...cumulativeCostsWithSolar.map((_, i) => [
+        ['Year', 'FIT (with grant)', 'FIT (without grant)', 'No FIT', 'No solar'],
+        [year.toString(), 0, 0, 0, 0],
+        ...Array.from({ length: installationLifeSpan }, (_, i) => [
           (year + i + 1).toString(),
+          cumulativeCostsWithGrant[i],
+          cumulativeCostsWithoutGrant[i],
           cumulativeCostsWithSolar[i],
           cumulativeCostsWithoutSolar[i],
         ]),
@@ -181,6 +275,8 @@
         title: `Cost analysis for ${installationLifeSpan} years`,
         width: 350,
         height: 200,
+        colors: ['#4CAF50', '#2196F3', '#FF9800', '#F44336'], // Green for grant, Blue for no grant, Orange for no FIT, Red for no solar
+        legend: { position: 'bottom' },
       });
       chart.draw(data, options);
     },
@@ -213,13 +309,13 @@
       <p class="relative inline-flex items-center space-x-2">
         <md-icon class="md:w-6 w-8">info</md-icon>
         <span>
-          Projections use a
+          Projections use European market values
           <a
             class="primary-text"
-            href="https://developers.google.com/maps/documentation/solar/calculate-costs-us"
+            href="https://developers.google.com/maps/documentation/solar/calculate-costs-typescript"
             target="_blank"
           >
-            USA financial model
+            adapted for EU markets
             <md-icon class="text-sm">open_in_new</md-icon>
           </a>
         </span>
@@ -329,7 +425,7 @@
       <md-filled-tonal-button
         trailing-icon
         role={undefined}
-        href="https://developers.google.com/maps/documentation/solar/calculate-costs-us"
+        href="https://developers.google.com/maps/documentation/solar/calculate-costs-typescript"
         target="_blank"
       >
         More details
@@ -395,20 +491,42 @@
             },
             {
               icon: 'wb_sunny',
-              name: 'Cost with solar',
+              name: 'Cost with solar (no FIT)',
               value: showMoney(totalCostWithSolar),
             },
             {
               icon: 'savings',
-              name: 'Savings',
+              name: 'Savings (no FIT)',
               value: showMoney(savings),
+            },
+            {
+              icon: 'euro_symbol',
+              name: 'FIT income (with grant)',
+              value: showMoney(totalFitIncomeWithGrant),
+            },
+            {
+              icon: 'euro_symbol',
+              name: 'FIT income (without grant)',
+              value: showMoney(totalFitIncomeWithoutGrant),
+            },
+            {
+              icon: 'trending_up',
+              name: 'Savings with FIT (grant)',
+              value: showMoney(savingsWithGrant),
+            },
+            {
+              icon: 'trending_up',
+              name: 'Savings with FIT (no grant)',
+              value: showMoney(savingsWithoutGrant),
             },
             {
               icon: 'balance',
               name: 'Break even',
               value:
-                breakEvenYear >= 0
-                  ? `${breakEvenYear + new Date().getFullYear() + 1} in ${breakEvenYear + 1}`
+                breakEvenYearWithGrant >= 0
+                  ? `${breakEvenYearWithGrant + new Date().getFullYear() + 1} (${breakEvenYearWithGrant + 1}y)`
+                  : breakEvenYearWithoutGrant >= 0
+                  ? `${breakEvenYearWithoutGrant + new Date().getFullYear() + 1} (${breakEvenYearWithoutGrant + 1}y)`
                   : '--',
               units: 'years',
             },

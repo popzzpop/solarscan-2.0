@@ -34,10 +34,10 @@
   let expandedSection: string = '';
   let showPanels = true;
 
-  // User settings
-  let monthlyAverageEnergyBillInput = 300;
+  // User settings - Updated for European market
+  let monthlyAverageEnergyBillInput = 200; // €200 monthly average
   let panelCapacityWattsInput = 250;
-  let energyCostPerKwhInput = 0.31;
+  let energyCostPerKwhInput = 0.28; // €0.28/kWh
   let dcToAcDerateInput = 0.85;
 
   // Find the config that covers the yearly energy consumption.
