@@ -33,6 +33,19 @@ export function findSolarConfig(
   panelCapacityRatio: number,
   dcToAcDerate: number,
 ) {
+  // First, try to find the smallest configuration with at least 12 panels that meets energy requirements
+  const minPanelsConfig = solarPanelConfigs.findIndex(
+    (config, index) =>
+      config.panelsCount >= 12 &&
+      config.yearlyEnergyDcKwh * panelCapacityRatio * dcToAcDerate >= yearlyKwhEnergyConsumption,
+  );
+
+  // If found, return that configuration
+  if (minPanelsConfig !== -1) {
+    return minPanelsConfig;
+  }
+
+  // Otherwise, fall back to original behavior: smallest configuration that meets requirements
   return solarPanelConfigs.findIndex(
     (config) =>
       config.yearlyEnergyDcKwh * panelCapacityRatio * dcToAcDerate >= yearlyKwhEnergyConsumption,
