@@ -48,8 +48,8 @@
 </script>
 
 <svelte:head>
-  <title>Solar API demo</title>
-  <meta name="description" content="Solar API demo" />
+  <title>Ghawdex Engineering Solar Analyzer for Malta</title>
+  <meta name="description" content="Professional solar potential analysis tool for Malta developed by Ghawdex Engineering" />
 </svelte:head>
 
 <main class="surface on-surface-text body-medium flex flex-col w-screen h-screen">

@@ -27,8 +27,8 @@
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
-    name: 'Rinconada Library',
-    address: '1213 Newell Rd, Palo Alto, CA 94303',
+    name: 'House of Representatives',
+    address: 'Misrah il-Parlament, Valletta VLT 2000, Malta',
   };
   let location: google.maps.LatLng | undefined;
   const zoom = 19;
@@ -88,15 +88,7 @@
 
       <div class="p-4 surface-variant outline-text rounded-lg space-y-3">
         <p>
-          <a
-            class="primary-text"
-            href="https://developers.google.com/maps/documentation/solar/overview?hl=en"
-            target="_blank"
-          >
-            Two distinct endpoints of the <b>Solar API</b>
-            <md-icon class="text-sm">open_in_new</md-icon>
-          </a>
-          offer many benefits to solar marketplace websites, solar installers, and solar SaaS designers.
+          Our advanced <b>Solar Analysis API</b> provides comprehensive solar potential insights for Malta's unique environment.
         </p>
 
         <p>
@@ -113,7 +105,7 @@
 
       <div class="flex flex-col items-center w-full">
         <md-text-button
-          href="https://github.com/googlemaps-samples/js-solar-potential"
+          href="https://github.com/ghawdex-engineering/solar-analyzer-malta"
           target="_blank"
         >
           View code on GitHub
@@ -122,7 +114,7 @@
       </div>
 
       <span class="pb-4 text-center outline-text label-small">
-        This is not an officially supported Google product.
+        Developed by Ghawdex Engineering for Malta 🇲🇹
       </span>
     </div>
   </aside>

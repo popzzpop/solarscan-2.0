@@ -1,18 +1,10 @@
-[![Build](https://github.com/googlemaps-samples/js-solar-potential/actions/workflows/build.yml/badge.svg)](https://github.com/googlemaps-samples/js-solar-potential/actions/workflows/build.yml)
-[![Tests](https://github.com/googlemaps-samples/js-solar-potential/actions/workflows/tests.yml/badge.svg)](https://github.com/googlemaps-samples/js-solar-potential/actions/workflows/tests.yml)
-
-![Contributors](https://img.shields.io/github/contributors/googlemaps-samples/js-solar-potential?color=green)
-[![License](https://img.shields.io/github/license/googlemaps-samples/js-solar-potential?color=blue)][license]
-[![StackOverflow](https://img.shields.io/stackexchange/stackoverflow/t/google-maps?color=orange&label=google-maps&logo=stackoverflow)](https://stackoverflow.com/questions/tagged/google-maps)
-[![Discord](https://img.shields.io/discord/676948200904589322?color=6A7EC2&logo=discord&logoColor=ffffff)][Discord server]
-
-# ☀️ Solar Potential demo
+# 🌞 Ghawdex Engineering Solar Analyzer for Malta 🇲🇹
 
 ## Description
 
-This repository provides a sample app demonstrating use of the **[Solar API]**. The Solar API offers many benefits to solar marketplace websites, solar installers, and solar SaaS designers.
+Ghawdex Engineering's professional Solar Analyzer is a comprehensive web application designed specifically for solar potential analysis in Malta. Built with precision and tailored for the Maltese market, this tool leverages advanced solar API technologies to provide detailed solar potential insights.
 
-The demo app showcases and displays the information from the Solar API on a map.
+The application offers comprehensive solar analysis features including rooftop solar potential assessment, environmental impact evaluations, and financial projections tailored for Malta's unique geographical and regulatory environment.
 
 ## Requirements
 

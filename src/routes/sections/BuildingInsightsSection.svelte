@@ -35,6 +35,15 @@
   import NumberInput from '../components/InputNumber.svelte';
   import Gauge from '../components/Gauge.svelte';
 
+  let useManualRoofArea = false;
+  let manualRoofArea = 0;
+
+  $: if (buildingInsights && !useManualRoofArea) {
+    manualRoofArea = buildingInsights.solarPotential.wholeRoofStats.areaMeters2;
+  }
+
+  $: adjustedRoofArea = useManualRoofArea ? manualRoofArea : (buildingInsights?.solarPotential.wholeRoofStats.areaMeters2 ?? 0);
+
   export let expandedSection: string;
   export let buildingInsights: BuildingInsightsResponse | undefined;
   export let configId: number | undefined;
@@ -176,6 +185,21 @@
         label="Panel capacity"
         suffix="Watts"
       />
+
+      <div class="border-t border-outline pt-2 mt-2">
+        <InputBool bind:value={useManualRoofArea} label="Manual roof area" />
+        {#if useManualRoofArea}
+          <NumberInput
+            bind:value={manualRoofArea}
+            icon="square_foot"
+            label="Roof area override"
+            suffix="m²"
+            min="0"
+            step="1"
+          />
+        {/if}
+      </div>
+
       <InputBool bind:value={showPanels} label="Solar panels" />
 
       <div class="grid justify-items-end">
@@ -218,8 +242,8 @@
             },
             {
               icon: 'square_foot',
-              name: 'Roof area',
-              value: showNumber(buildingInsights.solarPotential.wholeRoofStats.areaMeters2),
+              name: useManualRoofArea ? 'Roof area (manual)' : 'Roof area',
+              value: showNumber(adjustedRoofArea),
               units: 'm²',
             },
             {

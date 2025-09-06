@@ -1,6 +1,8 @@
 {
-  "name": "solar-potential",
+  "name": "ghawdex-solar-analyzer",
   "version": "1.0.0",
+  "description": "Ghawdex Engineering Solar Analyzer for Malta - Professional solar potential analysis tool",
+  "author": "Ghawdex Engineering",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
