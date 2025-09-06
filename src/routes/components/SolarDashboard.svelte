@@ -2,12 +2,11 @@
   import type { BuildingInsightsResponse, DataLayersResponse } from '../solar';
   import { findClosestBuilding, getDataLayerUrls } from '../solar';
   import { findSolarConfig, showMoney, showNumber } from '../utils';
-  import { createPalette, normalize, rgbToColor } from '../visualize';
-  import { panelsPalette } from '../colors';
   import { getLayer } from '../layer';
   import FeedInTariffCalculator from './FeedInTariffCalculator.svelte';
   import FinancingCalculator from './FinancingCalculator.svelte';
   import SolarIrradiationDisplay from './SolarIrradiationDisplay.svelte';
+  import SolarDataLayers from './SolarDataLayers.svelte';
 
   export let location: google.maps.LatLng;
   export let map: google.maps.Map; // Used for future map interaction features
@@ -17,8 +16,6 @@
   let buildingInsights: BuildingInsightsResponse | undefined;
   let requestSent = false;
   let requestError: string | undefined;
-  let dataLayersResponse: DataLayersResponse | undefined;
-  let irradiationOverlay: google.maps.GroundOverlay | undefined;
 
   // User settings for Malta market
   let monthlyEnergyBill = 100; // €100 monthly average
@@ -50,10 +47,6 @@
   let yearlyProduction = 0;
   let energyCovered = 0;
 
-  // Panel visualization
-  let showPanelsOnMap = true;
-  let showIrradiationOverlay = true;
-  let solarPanels: google.maps.Polygon[] = [];
 
   $: if (buildingInsights && configId !== undefined) {
     const config = buildingInsights.solarPotential.solarPanelConfigs[configId];
@@ -63,105 +56,8 @@
     installationCost = installationSizeKw * 1000 * installationCostPerWatt;
     yearlyProduction = config.yearlyEnergyDcKwh * panelCapacityRatio * dcToAcDerate;
     energyCovered = yearlyProduction / yearlyKwhConsumption;
-    
-    // Update panel visualization and irradiation overlay
-    updatePanelVisualization();
-    loadIrradiationOverlay();
   }
 
-  // Panel visualization on map
-  $: if (solarPanels.length > 0) {
-    solarPanels.forEach((panel, i) => 
-      panel.setMap(showPanelsOnMap && configId !== undefined && i < (buildingInsights?.solarPotential.solarPanelConfigs[configId]?.panelsCount || 0) ? map : null)
-    );
-  }
-
-  function updatePanelVisualization() {
-    if (!buildingInsights || !map || !geometryLibrary) return;
-
-    // Clear existing panels
-    solarPanels.forEach(panel => panel.setMap(null));
-    solarPanels = [];
-
-    // Use proper Google Solar API panel positioning (like the original code)
-    const solarPotential = buildingInsights.solarPotential;
-    const palette = createPalette(panelsPalette).map(rgbToColor);
-    const minEnergy = solarPotential.solarPanels.slice(-1)[0].yearlyEnergyDcKwh;
-    const maxEnergy = solarPotential.solarPanels[0].yearlyEnergyDcKwh;
-    
-    solarPanels = solarPotential.solarPanels.map((panel) => {
-      const [w, h] = [solarPotential.panelWidthMeters / 2, solarPotential.panelHeightMeters / 2];
-      const points = [
-        { x: +w, y: +h }, // top right
-        { x: +w, y: -h }, // bottom right
-        { x: -w, y: -h }, // bottom left
-        { x: -w, y: +h }, // top left
-        { x: +w, y: +h }, //  top right
-      ];
-      const orientation = panel.orientation == 'PORTRAIT' ? 90 : 0;
-      const azimuth = solarPotential.roofSegmentStats[panel.segmentIndex].azimuthDegrees;
-      const colorIndex = Math.round(normalize(panel.yearlyEnergyDcKwh, maxEnergy, minEnergy) * 255);
-      
-      return new google.maps.Polygon({
-        paths: points.map(({ x, y }) =>
-          geometryLibrary.spherical.computeOffset(
-            { lat: panel.center.latitude, lng: panel.center.longitude },
-            Math.sqrt(x * x + y * y),
-            Math.atan2(y, x) * (180 / Math.PI) + orientation + azimuth,
-          ),
-        ),
-        strokeColor: '#B0BEC5',
-        strokeOpacity: 0.9,
-        strokeWeight: 1,
-        fillColor: palette[colorIndex],
-        fillOpacity: 0.9,
-      });
-    });
-  }
-
-  async function loadIrradiationOverlay() {
-    if (!buildingInsights || !map) return;
-
-    try {
-      // Get data layer URLs
-      const center = { lat: buildingInsights.center.latitude, lng: buildingInsights.center.longitude };
-      const radius = 50; // meters
-      dataLayersResponse = await getDataLayerUrls(center, radius, googleMapsApiKey);
-      
-      // Load the annual flux (irradiation) layer
-      const annualFluxLayer = await getLayer('annualFlux', dataLayersResponse, googleMapsApiKey);
-      
-      // Create canvas for irradiation visualization
-      const canvas = annualFluxLayer.render(true, 0, 0)[0]; // showRoofOnly=true
-      
-      // Convert canvas to data URL
-      const dataUrl = canvas.toDataURL();
-      
-      // Remove existing overlay
-      if (irradiationOverlay) {
-        irradiationOverlay.setMap(null);
-      }
-      
-      // Create ground overlay for irradiation
-      const bounds = new google.maps.LatLngBounds(
-        new google.maps.LatLng(annualFluxLayer.bounds.south, annualFluxLayer.bounds.west),
-        new google.maps.LatLng(annualFluxLayer.bounds.north, annualFluxLayer.bounds.east)
-      );
-      
-      irradiationOverlay = new google.maps.GroundOverlay(dataUrl, bounds, {
-        opacity: showIrradiationOverlay ? 0.7 : 0,
-      });
-      
-      irradiationOverlay.setMap(map);
-    } catch (error) {
-      console.error('Error loading irradiation overlay:', error);
-    }
-  }
-
-  // Update irradiation overlay visibility
-  $: if (irradiationOverlay) {
-    irradiationOverlay.setOpacity(showIrradiationOverlay ? 0.7 : 0);
-  }
 
   // Load building data when location changes
   $: if (location) {
@@ -175,17 +71,8 @@
     requestError = undefined;
     requestSent = true;
 
-    // Clear existing overlays
-    if (irradiationOverlay) {
-      irradiationOverlay.setMap(null);
-      irradiationOverlay = undefined;
-    }
-    solarPanels.forEach(panel => panel.setMap(null));
-    solarPanels = [];
-
     try {
       buildingInsights = await findClosestBuilding(location, googleMapsApiKey);
-      // Panel visualization and irradiation overlay will be loaded by the reactive statement
     } catch (error: any) {
       requestError = error.message || 'Failed to load building data';
     } finally {
@@ -216,6 +103,9 @@
   {:else if buildingInsights}
     <!-- Solar Irradiation Analysis - Top Priority -->
     <SolarIrradiationDisplay {buildingInsights} />
+
+    <!-- Google Solar API Data Layers Visualization -->
+    <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} />
 
     <!-- Quick Settings Panel -->
     <div class="bg-white border border-gray-200 rounded-lg p-4">
@@ -289,49 +179,6 @@
         </p>
       </div>
 
-      <!-- Map Visualization Controls -->
-      <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 class="text-blue-800 font-semibold mb-3">🗺️ Map Visualization</h4>
-        
-        <div class="grid grid-cols-1 gap-3">
-          <!-- Solar Panels Toggle -->
-          <label class="flex items-center justify-between cursor-pointer">
-            <div class="flex items-center space-x-2">
-              <input 
-                type="checkbox" 
-                bind:checked={showPanelsOnMap}
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span class="text-sm text-blue-700 font-medium">Show Solar Panels</span>
-            </div>
-            <span class="text-xs text-blue-600">Color-coded by energy output</span>
-          </label>
-
-          <!-- Irradiation Overlay Toggle -->
-          <label class="flex items-center justify-between cursor-pointer">
-            <div class="flex items-center space-x-2">
-              <input 
-                type="checkbox" 
-                bind:checked={showIrradiationOverlay}
-                class="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
-              />
-              <span class="text-sm text-yellow-700 font-medium">Show Solar Irradiation</span>
-            </div>
-            <span class="text-xs text-yellow-600">Heat map overlay</span>
-          </label>
-        </div>
-
-        <div class="mt-3 p-2 bg-white rounded border text-xs">
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-gray-600">🟦 Solar Panels:</span>
-            <span class="text-gray-500">Actual Google API positions</span>
-          </div>
-          <div class="flex items-center justify-between">
-            <span class="text-gray-600">🌈 Irradiation:</span>
-            <span class="text-gray-500">Red = High, Blue = Low</span>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- Feed-in Tariff Calculator -->
