@@ -70,6 +70,24 @@
       rotateControl: false,
       streetViewControl: false,
       zoomControl: false,
+      styles: [
+        {
+          featureType: 'all',
+          elementType: 'all',
+          stylers: [
+            {
+              cursor: 'pointer'
+            }
+          ]
+        }
+      ]
+    });
+
+    // Add click listener for building selection
+    map.addListener('click', (mapsMouseEvent: google.maps.MapMouseEvent) => {
+      if (mapsMouseEvent.latLng) {
+        location = mapsMouseEvent.latLng;
+      }
     });
   });
 </script>
@@ -92,8 +110,14 @@
         </p>
 
         <p>
-          <b>Click on an area below</b>
-          to see what type of information the Solar API can provide.
+          <b>How to analyze a building:</b>
+        </p>
+        <ul class="space-y-1">
+          <li>🔍 Use the search bar to find an address</li>
+          <li>👆 <b>Or simply click directly on any building on the map</b></li>
+        </ul>
+        <p class="text-sm">
+          Perfect for Malta's unique street layout where address geocoding can be unreliable!
         </p>
       </div>
 
