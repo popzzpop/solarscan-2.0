@@ -257,14 +257,13 @@
       );
 
       const data = google.visualization.arrayToDataTable([
-        ['Year', 'FIT (with grant)', 'FIT (without grant)', 'No FIT', 'No solar'],
-        [year.toString(), 0, 0, 0, 0],
-        ...Array.from({ length: installationLifeSpan }, (_, i) => [
-          (year + i + 1).toString(),
-          cumulativeCostsWithGrant[i],
-          cumulativeCostsWithoutGrant[i],
-          cumulativeCostsWithSolar[i],
-          cumulativeCostsWithoutSolar[i],
+        ['Year', 'FIT (with grant)', 'FIT (without grant)', 'Solar (no FIT)', 'No solar'],
+        ...Array.from({ length: installationLifeSpan + 1 }, (_, i) => [
+          i === 0 ? year.toString() : (year + i).toString(),
+          i === 0 ? 0 : cumulativeCostsWithGrant[i - 1],
+          i === 0 ? 0 : cumulativeCostsWithoutGrant[i - 1],
+          i === 0 ? 0 : cumulativeCostsWithSolar[i - 1],
+          i === 0 ? 0 : cumulativeCostsWithoutSolar[i - 1],
         ]),
       ]);
 
@@ -273,10 +272,13 @@
       const chart = new googleCharts.Line(costChart);
       const options = googleCharts.Line.convertOptions({
         title: `Cost analysis for ${installationLifeSpan} years`,
-        width: 350,
+        width: 400,
         height: 200,
-        colors: ['#4CAF50', '#2196F3', '#FF9800', '#F44336'], // Green for grant, Blue for no grant, Orange for no FIT, Red for no solar
-        legend: { position: 'bottom' },
+        colors: ['#00C853', '#1565C0', '#FF6F00', '#C62828'], // Green for grant, Blue for no grant, Orange for no FIT, Red for no solar
+        legend: { position: 'bottom', textStyle: { fontSize: 10 } },
+        hAxis: { title: 'Year', titleTextStyle: { fontSize: 12 } },
+        vAxis: { title: 'Cumulative Cost (€)', titleTextStyle: { fontSize: 12 } },
+        chartArea: { width: '70%', height: '60%' },
       });
       chart.draw(data, options);
     },
