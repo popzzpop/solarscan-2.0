@@ -28,6 +28,7 @@
   export let isLoading = false; // Export loading state for external monitoring
   export let selectedMonth = 0; // Export current month for showcase indicator
   export let selectedHour = 12; // Export current hour for showcase indicator
+  export let selectedDayOfYear = 172; // Export current day of year (1-365) for seasonal shadow analysis
   let dataLayersResponse: DataLayersResponse | undefined;
   let currentLayer: Layer | undefined;
   let overlays: google.maps.GroundOverlay[] = [];
@@ -39,15 +40,19 @@
   let animationInterval: NodeJS.Timeout | undefined;
   let opacity = 0.7;
   let showRoofOnly = false;
+  let overlaysReady = false; // Track when overlays are actually visible
   
   // Dynamic animation speed based on showcase mode
-  $: animationSpeed = showcaseMode ? 333 : 1000; // Perfect timing for 2 cycles in showcase
+  $: animationSpeed = showcaseMode ? (selectedLayerId === 'hourlyShade' ? 1000 : 333) : 1000; // 1 second per hour for shadows
 
   // UI state for compact design
   let isMinimized = false;
 
-  // Time controls for animations
-  let selectedDay = 15; // 1-365, default middle of month
+  // Time controls for animations - use selectedDayOfYear from export
+  $: selectedDay = selectedDayOfYear; // Use the exported day of year for shadow calculations
+  
+  // Toggle effect for showcase eye-candy
+  let toggleOverlayVisible = true;
 
   // Load data layers when building insights change
   $: if (buildingInsights) {
@@ -55,12 +60,40 @@
     console.log('SolarDataLayers: Google Maps available:', !!window.google?.maps?.GroundOverlay);
     loadDataLayers();
   }
+  
+  // Set up global functions for AutoShowcase (no reactive dependency)
+  if (typeof window !== 'undefined') {
+    window.showcaseToggleOverlay = (visible: boolean) => {
+      console.log('SolarDataLayers: Toggle overlay visibility:', visible);
+      toggleOverlayVisible = visible;
+      // Force update of overlay visibility
+      if (overlays.length > 0) {
+        updateToggleVisibility();
+      }
+    };
+    
+    // Set up global function to check if overlays are ready
+    window.areSolarOverlaysReady = () => {
+      return overlaysReady && overlays.length > 0;
+    };
+    
+    // Set up global function to get current layer ID
+    window.getCurrentLayerId = () => {
+      return currentLayer?.id || selectedLayerId;
+    };
+  }
 
   // Update layer when selection changes
   $: if (dataLayersResponse && selectedLayerId !== 'none') {
     loadLayer(selectedLayerId);
   } else if (selectedLayerId === 'none') {
     clearOverlays();
+  }
+  
+  // Retry loading when dataLayersResponse becomes available (fixes race condition)
+  $: if (dataLayersResponse && selectedLayerId !== 'none' && !currentLayer && isLoading) {
+    console.log('SolarDataLayers: dataLayersResponse now available, retrying layer load for:', selectedLayerId);
+    loadLayer(selectedLayerId);
   }
 
   // Handle animation frame updates - always play animations for animated layers
@@ -89,6 +122,12 @@
       
       dataLayersResponse = await getDataLayerUrls(center, radius, googleMapsApiKey);
       console.log('SolarDataLayers: Data layers loaded successfully:', dataLayersResponse);
+      
+      // Set global flag to indicate data layers are ready for showcase
+      if (typeof window !== 'undefined') {
+        window.solarDataLayersReady = true;
+        console.log('SolarDataLayers: Set global ready flag');
+      }
     } catch (err: any) {
       error = `Failed to load data layers: ${err.message}`;
       console.error('SolarDataLayers: Error loading data layers:', err);
@@ -98,19 +137,33 @@
   }
 
   async function loadLayer(layerId: LayerId) {
+    console.log('SolarDataLayers: Loading layer:', layerId);
+    isLoading = true; // Set loading state immediately to signal AutoShowcase
+    
     if (!dataLayersResponse || !map) {
       console.log('SolarDataLayers: Missing dataLayersResponse or map for layer:', layerId);
+      // Don't return immediately - wait for dataLayersResponse to load
+      
+      // Set a timeout to prevent indefinite waiting
+      setTimeout(() => {
+        if (!dataLayersResponse) {
+          console.warn('SolarDataLayers: dataLayersResponse still not available after wait, aborting layer load');
+          isLoading = false;
+        }
+      }, 5000); // Wait up to 5 seconds for dataLayersResponse
+      
       return;
     }
 
-    console.log('SolarDataLayers: Loading layer:', layerId);
     try {
-      isLoading = true;
       error = undefined;
-      clearOverlays();
+      stopAnimation(); // Stop any existing animation before switching layers
 
       currentLayer = await getLayer(layerId, dataLayersResponse, googleMapsApiKey);
       console.log('SolarDataLayers: Layer loaded successfully:', layerId, currentLayer);
+      
+      // Clear overlays only after new layer is ready to prevent black gaps
+      clearOverlays();
       
       // Set up frame counts based on layer type
       if (layerId === 'monthlyFlux') {
@@ -134,11 +187,14 @@
 
       // Immediately show the overlay
       updateOverlay();
+      
+      // Note: isLoading will be set to false in the reactive statement 
+      // once overlays are confirmed to be visible
     } catch (err: any) {
       error = `Failed to load layer: ${err.message}`;
       console.error('Error loading layer:', err);
-    } finally {
-      isLoading = false;
+      isLoading = false; // Set loading false on error
+      overlaysReady = false;
     }
   }
 
@@ -165,13 +221,8 @@
       });
     });
 
-    // For non-animated layers, show the first overlay immediately
-    if (!['monthlyFlux', 'hourlyShade'].includes(currentLayer.id)) {
-      if (overlays.length > 0) {
-        overlays[0].setMap(map);
-        console.log('SolarDataLayers: Static overlay added to map');
-      }
-    }
+    // Let the reactive statement handle overlay visibility
+    // Removed direct setMap() call to avoid conflicts with reactive statement
     
     console.log('SolarDataLayers: Created', overlays.length, 'overlays for layer:', currentLayer.id);
   }
@@ -179,6 +230,22 @@
   function clearOverlays() {
     overlays.forEach(overlay => overlay.setMap(null));
     overlays = [];
+    overlaysReady = false;
+    console.log('SolarDataLayers: Cleared overlays and reset ready state');
+  }
+  
+  function updateToggleVisibility() {
+    console.log('SolarDataLayers: updateToggleVisibility called, visible:', toggleOverlayVisible);
+    if (overlays.length > 0) {
+      if (currentLayer?.id === 'monthlyFlux') {
+        overlays.forEach((overlay, i) => overlay.setMap(i === selectedMonth && toggleOverlayVisible ? map : null));
+      } else if (currentLayer?.id === 'hourlyShade') {
+        overlays.forEach((overlay, i) => overlay.setMap(i === selectedHour && toggleOverlayVisible ? map : null));
+      } else if (currentLayer) {
+        // For static layers like rgb and mask
+        overlays.forEach((overlay, i) => overlay.setMap(i === 0 && toggleOverlayVisible ? map : null));
+      }
+    }
   }
 
   function startAnimation() {
@@ -229,16 +296,60 @@
     }
   }
 
-  // Update overlay when settings change
-  $: if (currentLayer && !isLoading) {
-    updateOverlay();
-  }
+  // Update overlay when settings change - REMOVED to prevent duplicate calls
+  // The updateOverlay() call in loadLayer() is sufficient
+  // $: if (currentLayer && !isLoading) {
+  //   updateOverlay();
+  // }
 
   // Handle animated layer frame switching - matching original DataLayersSection approach
-  $: if (currentLayer?.id === 'monthlyFlux') {
-    overlays.forEach((overlay, i) => overlay.setMap(i === selectedMonth ? map : null));
-  } else if (currentLayer?.id === 'hourlyShade') {
-    overlays.forEach((overlay, i) => overlay.setMap(i === selectedHour ? map : null));
+  $: {
+    console.log('SolarDataLayers: Reactive statement firing - currentLayer:', currentLayer?.id, 'overlays:', overlays.length, 'toggleVisible:', toggleOverlayVisible);
+    
+    let hasVisibleOverlay = false;
+    
+    if (currentLayer?.id === 'monthlyFlux') {
+      console.log('SolarDataLayers: Setting monthlyFlux overlay, selectedMonth:', selectedMonth);
+      overlays.forEach((overlay, i) => {
+        const shouldShow = i === selectedMonth && toggleOverlayVisible;
+        overlay.setMap(shouldShow ? map : null);
+        if (shouldShow) hasVisibleOverlay = true;
+      });
+    } else if (currentLayer?.id === 'hourlyShade') {
+      console.log('SolarDataLayers: Setting hourlyShade overlay, selectedHour:', selectedHour);
+      overlays.forEach((overlay, i) => {
+        const shouldShow = i === selectedHour && toggleOverlayVisible;
+        overlay.setMap(shouldShow ? map : null);
+        if (shouldShow) hasVisibleOverlay = true;
+      });
+    } else if (currentLayer && overlays.length > 0) {
+      // For static layers (annualFlux, rgb, mask, dsm), keep the first overlay visible
+      console.log('SolarDataLayers: Setting static overlay for layer:', currentLayer.id);
+      overlays.forEach((overlay, i) => {
+        // Special case: annualFlux should always be visible when it's the current layer
+        const shouldShow = i === 0 && (toggleOverlayVisible || currentLayer.id === 'annualFlux');
+        console.log(`SolarDataLayers: Overlay ${i}: ${shouldShow ? 'showing' : 'hiding'} (layer: ${currentLayer.id})`);
+        overlay.setMap(shouldShow ? map : null);
+        if (shouldShow) hasVisibleOverlay = true;
+      });
+    } else {
+      console.log('SolarDataLayers: No overlay conditions met - currentLayer:', currentLayer?.id, 'overlays:', overlays.length);
+    }
+    
+    // Update ready state and loading based on visibility
+    if (hasVisibleOverlay && !overlaysReady) {
+      overlaysReady = true;
+      console.log('SolarDataLayers: Overlays now ready and visible');
+      
+      // Set loading to false only when overlays are actually visible
+      if (isLoading) {
+        isLoading = false;
+        console.log('SolarDataLayers: Setting isLoading to false - overlays visible');
+      }
+    } else if (!hasVisibleOverlay && overlaysReady) {
+      overlaysReady = false;
+      console.log('SolarDataLayers: Overlays no longer visible');
+    }
   }
 
   // Update opacity

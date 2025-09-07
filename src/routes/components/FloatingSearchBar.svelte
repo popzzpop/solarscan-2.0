@@ -3,6 +3,7 @@
   export let placesLibrary: google.maps.PlacesLibrary;
   export let map: google.maps.Map;
   export let onLocationSelected: () => void = () => {};
+  export let showcaseActive = false;
 
   let isInitial = true;
   let searchInput: HTMLInputElement;
@@ -26,7 +27,16 @@
         if (place.geometry?.location) {
           location = place.geometry.location;
           map.setCenter(place.geometry.location);
-          map.setZoom(20);
+          
+          // Use MaxZoomService to get proper max zoom for this location
+          const maxZoomService = new google.maps.MaxZoomService();
+          maxZoomService.getMaxZoomAtLatLng(place.geometry.location, (result) => {
+            if (result?.zoom) {
+              map.setZoom(result.zoom);
+            } else {
+              map.setZoom(20); // Fallback
+            }
+          });
           
           // Animate to bottom position
           isInitial = false;
@@ -103,8 +113,8 @@
       </div>
     </div>
   </div>
-{:else}
-  <!-- Bottom floating position -->
+{:else if !showcaseActive}
+  <!-- Bottom floating position - hidden during showcase -->
   <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 transition-all duration-500">
     <div class="bg-white rounded-lg shadow-lg p-3 flex items-center space-x-3 min-w-80">
       <input

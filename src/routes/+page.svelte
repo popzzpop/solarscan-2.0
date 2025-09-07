@@ -29,6 +29,9 @@
   import SolarDataLayers from './components/SolarDataLayers.svelte';
   import FloatingSearchBar from './components/FloatingSearchBar.svelte';
   import AutoShowcase from './components/AutoShowcase.svelte';
+  import ReportCapture from './components/ReportCapture.svelte';
+  import PDFReportGenerator from './components/PDFReportGenerator.svelte';
+  import DownloadButton from './components/DownloadButton.svelte';
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
@@ -45,6 +48,14 @@
   // Demo state
   let showcaseComponent: AutoShowcase;
   let showDataLayers = false;
+  let showcaseActive = false;
+  
+  // PDF Report state
+  let reportCapture: ReportCapture;
+  let pdfGenerator: PDFReportGenerator;
+  let showDownloadButton = false;
+  let isGeneratingPDF = false;
+  let capturedImages = {};
 
   // Building data state
   let buildingInsights: BuildingInsightsResponse | undefined;
@@ -80,7 +91,7 @@
     location = geocoderResult.geometry.location;
     map = new mapsLibrary.Map(mapElement, {
       center: location,
-      zoom: zoom,
+      zoom: zoom, // Initial zoom, will be adjusted below
       tilt: 0,
       mapTypeId: 'satellite',
       mapTypeControl: false,
@@ -101,13 +112,31 @@
       ]
     });
 
+    // Set optimal zoom for the initial location using MaxZoomService
+    const maxZoomService = new google.maps.MaxZoomService();
+    maxZoomService.getMaxZoomAtLatLng(location, (result) => {
+      if (result?.zoom && result.zoom !== zoom) {
+        map.setZoom(result.zoom);
+      }
+    });
+
     // Add click listener for building selection
     map.addListener('click', (mapsMouseEvent: google.maps.MapMouseEvent) => {
       if (mapsMouseEvent.latLng) {
         location = mapsMouseEvent.latLng;
         
-        // Center map on clicked location (no offset needed since sidebars are overlays)
+        // Center map on clicked location and set optimal zoom
         map.panTo(mapsMouseEvent.latLng);
+        
+        // Use MaxZoomService to get proper max zoom for this location
+        const maxZoomService = new google.maps.MaxZoomService();
+        maxZoomService.getMaxZoomAtLatLng(mapsMouseEvent.latLng, (result) => {
+          if (result?.zoom) {
+            map.setZoom(result.zoom);
+          } else {
+            map.setZoom(20); // Fallback
+          }
+        });
         
         leftSidebarOpen = true; // Open left sidebar when building is clicked
         rightSidebarOpen = true; // Also ensure right sidebar is open
@@ -157,6 +186,7 @@
       
       // Start the automated showcase
       if (buildingInsights) {
+        showcaseActive = true; // Track showcase state
         setTimeout(() => {
           if (showcaseComponent) {
             showcaseComponent.startShowcase();
@@ -164,6 +194,7 @@
             // If showcase component isn't ready, show data layers immediately
             console.log('Showcase component not ready, showing layers directly');
             showDataLayers = true;
+            showcaseActive = false;
           }
         }, 500);
       }
@@ -175,7 +206,8 @@
   }
 
   // Handle showcase completion
-  function handleShowcaseComplete() {
+  async function handleShowcaseComplete() {
+    showcaseActive = false; // Showcase is now complete
     showDataLayers = true;
     
     // Auto-open sidebars with a stagger effect
@@ -186,16 +218,26 @@
     setTimeout(() => {
       leftSidebarOpen = true;
     }, 1000);
+    
+    // Show download button after showcase
+    setTimeout(() => {
+      showDownloadButton = true;
+    }, 2000);
+    
+    // Capture final images for report
+    if (reportCapture) {
+      try {
+        // Give time for layers to settle
+        setTimeout(async () => {
+          await reportCapture.captureMapView('final_analysis');
+          capturedImages = reportCapture.capturedImages;
+        }, 3000);
+      } catch (error) {
+        console.error('Error capturing final images:', error);
+      }
+    }
   }
 
-  // Fallback - ensure data layers show after some time even if showcase doesn't complete
-  $: if (buildingInsights && !showDataLayers) {
-    setTimeout(() => {
-      if (buildingInsights && !showDataLayers) {
-        showDataLayers = true;
-      }
-    }, 20000); // Show after 20 seconds as fallback
-  }
 
   // Load building data when location changes
   async function loadBuildingData() {
@@ -210,6 +252,24 @@
       console.error('Failed to load building data:', error);
     } finally {
       buildingDataLoading = false;
+    }
+  }
+  
+  // Handle PDF report generation
+  async function handleGenerateReport() {
+    if (!pdfGenerator || !buildingInsights) {
+      console.warn('PDF generator or building data not available');
+      return;
+    }
+    
+    isGeneratingPDF = true;
+    
+    try {
+      await pdfGenerator.generatePDF();
+    } catch (error) {
+      console.error('Error generating PDF report:', error);
+    } finally {
+      isGeneratingPDF = false;
     }
   }
 </script>
@@ -244,6 +304,7 @@
     {placesLibrary} 
     {map} 
     onLocationSelected={handleLocationSelected}
+    {showcaseActive}
   />
 {/if}
 
@@ -255,13 +316,14 @@
     {map} 
     {googleMapsApiKey}
     onShowcaseComplete={handleShowcaseComplete}
+    {reportCapture}
   />
 {/if}
 
 <!-- Floating Solar Data Visualization Panel (after showcase) -->
 {#if buildingInsights && map && showDataLayers}
   <div class="fixed top-4 left-1/2 transform -translate-x-1/2 z-30 max-w-md">
-    <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} />
+    <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} selectedLayerId="annualFlux" />
   </div>
 {/if}
 
@@ -277,4 +339,29 @@
   {googleMapsApiKey} 
   {buildingInsights} 
   {buildingDataLoading} 
+/>
+
+<!-- PDF Report System -->
+<ReportCapture 
+  bind:this={reportCapture}
+  {map} 
+  {buildingInsights}
+  bind:capturedImages
+/>
+
+<PDFReportGenerator 
+  bind:this={pdfGenerator}
+  {buildingInsights}
+  {capturedImages}
+  propertyAddress={defaultPlace.address}
+  bind:isGenerating={isGeneratingPDF}
+/>
+
+<DownloadButton 
+  {buildingInsights}
+  {capturedImages}
+  propertyAddress={defaultPlace.address}
+  isVisible={showDownloadButton}
+  isGenerating={isGeneratingPDF}
+  onGenerateReport={handleGenerateReport}
 />
