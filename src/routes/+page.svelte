@@ -32,6 +32,10 @@
   import ReportCapture from './components/ReportCapture.svelte';
   import PDFReportGenerator from './components/PDFReportGenerator.svelte';
   import DownloadButton from './components/DownloadButton.svelte';
+  import MonthlyBillModal from './components/MonthlyBillModal.svelte';
+  import FullscreenCashFlowChart from './components/FullscreenCashFlowChart.svelte';
+  import ContactCaptureModal from './components/ContactCaptureModal.svelte';
+  import { initEmailJS, sendLeadNotification, type LeadData } from '$lib/emailService';
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const defaultPlace = {
@@ -39,6 +43,7 @@
     address: 'Misrah il-Parlament, Valletta VLT 2000, Malta',
   };
   let location: google.maps.LatLng | undefined;
+  let selectedAddress = defaultPlace.address; // Store the actual selected address
   const zoom = 20;
   
   // Sidebar state
@@ -61,6 +66,14 @@
   let buildingInsights: BuildingInsightsResponse | undefined;
   let buildingDataLoading = false;
 
+  // New flow state management
+  let showMonthlyBillModal = false;
+  let showFullscreenChart = false;
+  let showContactCapture = false;
+  let monthlyEnergyBill = 100;
+  let billEntered = false;
+  let userContact = null;
+
   // Initialize app.
   let mapElement: HTMLElement;
   let map: google.maps.Map;
@@ -69,6 +82,9 @@
   let placesLibrary: google.maps.PlacesLibrary;
   let currentMarker: google.maps.Marker | undefined;
   onMount(async () => {
+    // Initialize EmailJS for lead capture
+    initEmailJS();
+    
     // Load the Google Maps libraries.
     const loader = new Loader({ apiKey: googleMapsApiKey });
     const libraries = {
@@ -172,9 +188,31 @@
     });
   }
 
-  // Handle location selection from floating search
-  async function handleLocationSelected() {
+  // Handle location selection from floating search or map click
+  async function handleLocationSelected(address?: string) {
     if (!location) return;
+    
+    // If address is provided from search, use it directly
+    if (address) {
+      selectedAddress = address;
+    } else {
+      // For map clicks, use reverse geocoding to get address
+      try {
+        const geocoder = new google.maps.Geocoder();
+        const geocoderResponse = await geocoder.geocode({
+          location: location,
+        });
+        
+        if (geocoderResponse.results?.[0]?.formatted_address) {
+          selectedAddress = geocoderResponse.results[0].formatted_address;
+        }
+      } catch (error) {
+        console.error('Error getting address from coordinates:', error);
+        // Keep default address if geocoding fails
+      }
+    }
+    
+    console.log('📍 Selected address:', selectedAddress);
     
     // Create marker for selected location
     createMarker();
@@ -210,19 +248,10 @@
     showcaseActive = false; // Showcase is now complete
     showDataLayers = true;
     
-    // Auto-open sidebars with a stagger effect
+    // Show monthly bill modal instead of immediate sidebar opening
     setTimeout(() => {
-      rightSidebarOpen = true;
+      showMonthlyBillModal = true;
     }, 500);
-    
-    setTimeout(() => {
-      leftSidebarOpen = true;
-    }, 1000);
-    
-    // Show download button after showcase
-    setTimeout(() => {
-      showDownloadButton = true;
-    }, 2000);
     
     // Capture final images for report
     if (reportCapture) {
@@ -236,6 +265,73 @@
         console.error('Error capturing final images:', error);
       }
     }
+  }
+
+  // Handle monthly bill modal completion - now shows fullscreen chart
+  function handleBillContinue(bill: number) {
+    monthlyEnergyBill = bill;
+    billEntered = true;
+    showMonthlyBillModal = false;
+    
+    // Show dramatic fullscreen chart
+    setTimeout(() => {
+      showFullscreenChart = true;
+    }, 300);
+  }
+
+  // Handle fullscreen chart completion - now shows contact capture
+  function handleChartContinue() {
+    showFullscreenChart = false;
+    
+    setTimeout(() => {
+      showContactCapture = true;
+    }, 200);
+  }
+
+  // Handle contact capture completion - now opens sidebars
+  async function handleContactCapture(contact: any) {
+    userContact = contact;
+    showContactCapture = false;
+    
+    // Prepare comprehensive lead data
+    const leadData: LeadData = {
+      ...contact,
+      monthlyBill: monthlyEnergyBill,
+      address: selectedAddress,
+      yearlyProduction: buildingInsights?.solarPotential ? 
+        Math.round((buildingInsights.solarPotential.maxArrayPanelsCount * 450 * buildingInsights.solarPotential.maxSunshineHoursPerYear) / 1000) : 
+        undefined,
+      panelCount: buildingInsights?.solarPotential?.maxArrayPanelsCount,
+      systemSize: buildingInsights?.solarPotential ? 
+        `${((buildingInsights.solarPotential.maxArrayPanelsCount * 450) / 1000).toFixed(1)} kW` : 
+        undefined,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('📧 Sending lead notification:', leadData);
+    
+    // Send email notification (non-blocking)
+    sendLeadNotification(leadData)
+      .then((response) => {
+        console.log('✅ Lead email sent successfully:', response);
+      })
+      .catch((error) => {
+        console.error('❌ Lead email failed (saved locally):', error);
+      });
+    
+    // Continue with UI flow immediately (don't wait for email)
+    setTimeout(() => {
+      rightSidebarOpen = true;
+    }, 200);
+    
+    setTimeout(() => {
+      leftSidebarOpen = true;
+    }, 700);
+    
+    // Show download button after sidebars
+    setTimeout(() => {
+      showDownloadButton = true;
+    }, 1500);
   }
 
 
@@ -338,7 +434,9 @@
   {geometryLibrary} 
   {googleMapsApiKey} 
   {buildingInsights} 
-  {buildingDataLoading} 
+  {buildingDataLoading}
+  {monthlyEnergyBill}
+  {billEntered}
 />
 
 <!-- PDF Report System -->
@@ -353,15 +451,39 @@
   bind:this={pdfGenerator}
   {buildingInsights}
   {capturedImages}
-  propertyAddress={defaultPlace.address}
+  propertyAddress={selectedAddress}
   bind:isGenerating={isGeneratingPDF}
 />
 
 <DownloadButton 
   {buildingInsights}
   {capturedImages}
-  propertyAddress={defaultPlace.address}
+  propertyAddress={selectedAddress}
   isVisible={showDownloadButton}
   isGenerating={isGeneratingPDF}
   onGenerateReport={handleGenerateReport}
+/>
+
+<!-- Monthly Bill Modal -->
+<MonthlyBillModal 
+  bind:isVisible={showMonthlyBillModal}
+  monthlyBill={monthlyEnergyBill}
+  onContinue={handleBillContinue}
+/>
+
+<!-- Fullscreen Cash Flow Chart -->
+{#if buildingInsights}
+  <FullscreenCashFlowChart
+    bind:isVisible={showFullscreenChart}
+    {monthlyEnergyBill}
+    yearlyProduction={buildingInsights.solarPotential.maxArrayPanelsCount * buildingInsights.solarPotential.panelCapacityWatts * buildingInsights.solarPotential.maxSunshineHoursPerYear / 1000}
+    yearlyKwhConsumption={monthlyEnergyBill / 0.15 * 12}
+    onContinueToAnalysis={handleChartContinue}
+  />
+{/if}
+
+<!-- Contact Capture Modal -->
+<ContactCaptureModal
+  bind:isVisible={showContactCapture}
+  onContactCapture={handleContactCapture}
 />

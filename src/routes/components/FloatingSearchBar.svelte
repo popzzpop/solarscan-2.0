@@ -2,7 +2,7 @@
   export let location: google.maps.LatLng | undefined;
   export let placesLibrary: google.maps.PlacesLibrary;
   export let map: google.maps.Map;
-  export let onLocationSelected: () => void = () => {};
+  export let onLocationSelected: (address?: string) => void = () => {};
   export let showcaseActive = false;
 
   let isInitial = true;
@@ -44,8 +44,9 @@
           // Clear the input to allow new searches
           searchInput.value = '';
           
-          // Notify parent that location was selected
-          onLocationSelected();
+          // Notify parent with location and address
+          const address = place.formatted_address || place.name || '';
+          onLocationSelected(address);
         }
       }
     });
@@ -116,22 +117,15 @@
 {:else if !showcaseActive}
   <!-- Bottom floating position - hidden during showcase -->
   <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-30 transition-all duration-500">
-    <div class="bg-white rounded-lg shadow-lg p-3 flex items-center space-x-3 min-w-80">
-      <input
-        bind:this={searchInput}
-        type="text"
-        placeholder="Search new address..."
-        class="flex-1 p-2 border border-gray-300 rounded focus:border-blue-500 focus:ring-1 focus:ring-blue-200 focus:outline-none text-sm"
-      />
-      <button 
-        on:click={handleExpandClick}
-        class="p-2 text-gray-500 hover:text-gray-700 transition-colors"
-        title="Expand search"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-        </svg>
-      </button>
-    </div>
+    <button 
+      on:click={() => window.location.reload()}
+      class="bg-gradient-to-r from-blue-600 to-green-600 hover:from-blue-700 hover:to-green-700 text-white px-6 py-3 rounded-lg shadow-lg font-semibold transition-all duration-200 transform hover:scale-105 flex items-center space-x-2"
+      title="Start new search"
+    >
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+      </svg>
+      <span>🔍 New Search</span>
+    </button>
   </div>
 {/if}
