@@ -1,4 +1,5 @@
 import emailjs from '@emailjs/browser';
+import { emailRateLimit, validation, getClientFingerprint, logSecurityEvent } from './security';
 
 // Types for lead data
 export interface LeadData {
@@ -35,6 +36,31 @@ export function initEmailJS() {
 
 // Send lead notification email
 export async function sendLeadNotification(leadData: LeadData) {
+  // Apply rate limiting
+  const clientId = getClientFingerprint();
+  if (!emailRateLimit.isAllowed(clientId)) {
+    logSecurityEvent('Rate limit exceeded', { 
+      clientId, 
+      remaining: emailRateLimit.getRemainingRequests(clientId),
+      resetTime: new Date(emailRateLimit.getResetTime(clientId)).toISOString()
+    });
+    throw new Error('Too many email requests. Please wait before trying again.');
+  }
+
+  // Validate and sanitize input data
+  const sanitizedData = validation.sanitizeLeadData(leadData);
+  
+  // Additional validation
+  if (sanitizedData.type === 'email' && !validation.isValidEmail(sanitizedData.value)) {
+    logSecurityEvent('Invalid email format', { value: sanitizedData.value });
+    throw new Error('Invalid email format');
+  }
+  
+  if (sanitizedData.type === 'phone' && !validation.isValidPhone(sanitizedData.value)) {
+    logSecurityEvent('Invalid phone format', { value: sanitizedData.value });
+    throw new Error('Invalid phone number format');
+  }
+
   // Check if EmailJS is properly configured
   const serviceId = import.meta.env.VITE_EMAILJS_SERVICE_ID;
   const templateId = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
@@ -43,28 +69,28 @@ export async function sendLeadNotification(leadData: LeadData) {
   if (!serviceId || !templateId || !notificationEmail) {
     console.warn('EmailJS: Missing required environment variables');
     // Still save locally as backup
-    saveLeadLocally(leadData);
+    saveLeadLocally(sanitizedData);
     throw new Error('EmailJS configuration incomplete');
   }
 
   // Prepare template parameters
   const templateParams = {
     to_email: notificationEmail,
-    from_name: leadData.name || 'Unknown Lead',
-    contact_type: leadData.type,
-    contact_value: leadData.value,
-    monthly_bill: leadData.monthlyBill,
-    address: leadData.address || 'Not specified',
-    timestamp: new Date(leadData.timestamp).toLocaleString('en-GB', { 
+    from_name: sanitizedData.name || 'Unknown Lead',
+    contact_type: sanitizedData.type,
+    contact_value: sanitizedData.value,
+    monthly_bill: sanitizedData.monthlyBill,
+    address: sanitizedData.address || 'Not specified',
+    timestamp: new Date(sanitizedData.timestamp).toLocaleString('en-GB', { 
       timeZone: 'Europe/Malta',
       dateStyle: 'full',
       timeStyle: 'short'
     }),
-    yearly_production: leadData.yearlyProduction?.toFixed(0) || 'N/A',
-    panel_count: leadData.panelCount || 'N/A',
-    system_size: leadData.systemSize || 'N/A',
-    source: leadData.source,
-    provider: leadData.provider || 'manual',
+    yearly_production: sanitizedData.yearlyProduction?.toFixed(0) || 'N/A',
+    panel_count: sanitizedData.panelCount || 'N/A',
+    system_size: sanitizedData.systemSize || 'N/A',
+    source: sanitizedData.source,
+    provider: sanitizedData.provider || 'manual',
     
     // Additional metadata
     deployment: 'Railway Production',
@@ -84,14 +110,14 @@ export async function sendLeadNotification(leadData: LeadData) {
     console.log('✅ Lead notification sent successfully:', response);
     
     // Also save to localStorage as backup
-    saveLeadLocally(leadData);
+    saveLeadLocally(sanitizedData);
     
     return response;
   } catch (error) {
     console.error('❌ Email send failed:', error);
     
     // Always save to localStorage as backup when email fails
-    saveLeadLocally(leadData);
+    saveLeadLocally(sanitizedData);
     
     // Re-throw error so caller can handle it
     throw error;
