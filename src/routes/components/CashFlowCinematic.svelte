@@ -1,11 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { showMoney } from '../utils';
-  import Scene1Hook from './animations/Scene1Hook.svelte';
-  import Scene2Bleed from './animations/Scene2Bleed.svelte';
-  import Scene3Transform from './animations/Scene3Transform.svelte';
   import Scene4ChartBuild from './animations/Scene4ChartBuild.svelte';
-  import Scene5Comparison from './animations/Scene5Comparison.svelte';
   import Scene6CTA from './animations/Scene6CTA.svelte';
 
   export let isVisible = false;
@@ -14,6 +10,7 @@
   export let yearlyKwhConsumption = 4000;
   export let onContinueToAnalysis: () => void = () => {};
   export let showHighFitOnly = false;
+  export let demoStartTime: number;
 
   // Malta Feed-in Tariff rates and calculations (same as original)
   const fitLowRate = 0.105;
@@ -80,7 +77,8 @@
     energyCostPerKwh,
     electricityInflationRate,
     showHighFitOnly,
-    sunshineHours
+    sunshineHours,
+    demoStartTime
   };
 
   function restartAnimation() {
@@ -91,7 +89,7 @@
 
   function skipToEnd() {
     if (canSkip) {
-      currentScene = 5;
+      currentScene = 1;
       showControls = true;
       isPlaying = false;
     }
@@ -101,7 +99,7 @@
     switch(event.key) {
       case 'Escape':
       case 'Enter':
-        if (currentScene === 5 || !isPlaying) {
+        if (currentScene === 1 || !isPlaying) {
           onContinueToAnalysis();
         } else {
           skipToEnd();
@@ -136,7 +134,7 @@
     {/if}
 
     <!-- Skip button (visible during animation) -->
-    {#if canSkip && isPlaying && currentScene < 5}
+    {#if canSkip && isPlaying && currentScene < 1}
       <button
         on:click={skipToEnd}
         class="absolute top-6 right-6 text-white text-sm opacity-50 hover:opacity-80 transition-opacity z-[90] bg-black bg-opacity-30 px-3 py-1 rounded-full"
@@ -146,8 +144,8 @@
       </button>
     {/if}
 
-    <!-- Animation controls (bottom center, visible after scene 2) -->
-    {#if currentScene >= 2}
+    <!-- Animation controls (bottom center, visible from start) -->
+    {#if currentScene >= 0}
       <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[90] flex gap-2">
         <button
           on:click={restartAnimation}
@@ -163,43 +161,16 @@
 
     <!-- Scene Components -->
     
-    <!-- Scene 1: The Hook -->
-    <Scene1Hook 
-      visible={currentScene === 0} 
-      on:sceneComplete={() => currentScene = 1}
-    />
-
-    <!-- Scene 2: The Bleed -->
-    <Scene2Bleed 
-      visible={currentScene === 1}
-      data={sceneData}
-      on:sceneComplete={() => currentScene = 2}
-    />
-
-    <!-- Scene 3: The Transformation -->
-    <Scene3Transform 
-      visible={currentScene === 2}
-      data={sceneData}
-      on:sceneComplete={() => currentScene = 3}
-    />
-
     <!-- Scene 4: 3D Chart Build -->
     <Scene4ChartBuild 
-      visible={currentScene === 3}
+      visible={currentScene === 0}
       data={sceneData}
-      on:sceneComplete={() => currentScene = 4}
-    />
-
-    <!-- Scene 5: The Comparison -->
-    <Scene5Comparison 
-      visible={currentScene === 4}
-      data={sceneData}
-      on:sceneComplete={() => currentScene = 5}
+      on:sceneComplete={() => currentScene = 1}
     />
 
     <!-- Scene 6: Call to Action -->
     <Scene6CTA 
-      visible={currentScene === 5}
+      visible={currentScene === 1}
       data={sceneData}
       on:continue={onContinueToAnalysis}
     />

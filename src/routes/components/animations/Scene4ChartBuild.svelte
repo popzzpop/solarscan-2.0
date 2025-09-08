@@ -11,11 +11,14 @@
   let chartContainer: HTMLDivElement;
   let title: HTMLDivElement;
   let subtitle: HTMLDivElement;
-  let yearCounter: HTMLDivElement;
   let chartSvg: SVGElement;
+  let finalComparisonContainer: HTMLDivElement;
   
   let animationStarted = false;
   let currentAnimatedYear = 0;
+  let year25NoSolar = 0;
+  let year25BestOption = 0;
+  let totalDifference = 0;
 
   // Chart configuration
   const chartWidth = 800;
@@ -29,6 +32,18 @@
 
   // Chart data calculation
   $: cashFlowData = calculateCashFlowData();
+  
+  // Calculate 25-year comparison values
+  $: {
+    if (cashFlowData) {
+      year25NoSolar = Math.abs(cashFlowData.noSolarCashFlow[25]) || 50000;
+      year25BestOption = Math.max(
+        cashFlowData.moneyPrinterCashFlow[25] || 0,
+        cashFlowData.financedCashFlow[25] || 0
+      );
+      totalDifference = year25BestOption + year25NoSolar; // Total swing
+    }
+  }
 
   function calculateCashFlowData() {
     if (!data) return generateFallbackData();
@@ -160,7 +175,7 @@
     animationStarted = true;
 
     // Set initial states
-    gsap.set([title, subtitle, chartContainer, yearCounter], { 
+    gsap.set([title, subtitle, chartContainer, finalComparisonContainer], { 
       opacity: 0,
       y: 30,
       scale: 0.95
@@ -171,7 +186,7 @@
       onComplete: () => {
         setTimeout(() => {
           dispatch('sceneComplete');
-        }, 10000); // Wait for all lines and year counter to finish
+        }, 15000); // Wait for final comparison to complete
       }
     });
 
@@ -208,11 +223,12 @@
         animateLines();
       }, 2.5)
 
-      .to(yearCounter, {
-        opacity: 1,
-        scale: 1,
-        duration: 0.5
-      }, 2.7);
+      // Add final comparison after lines complete
+      .add(() => {
+        setTimeout(() => {
+          animateFinalComparison();
+        }, 8000); // Wait for all lines to finish drawing
+      }, 2.5);
 
     console.log('📈 Scene 4 (Professional 2D Chart) animation started');
   }
@@ -330,20 +346,65 @@
     });
   }
 
-  function animateYearCounter() {
-    let year = 0;
-    const yearInterval = setInterval(() => {
-      if (yearCounter) {
-        yearCounter.textContent = `Year ${year}`;
-        currentAnimatedYear = year;
-        year++;
-        
-        if (year > 25) {
-          clearInterval(yearInterval);
-          yearCounter.textContent = "25 Years - Financial Future Revealed!";
-        }
-      }
-    }, 300); // Slower than original for better sync
+  function animateFinalComparison() {
+    if (!finalComparisonContainer) return;
+
+    // Create dramatic entrance animation
+    const comparisonTl = gsap.timeline();
+
+    comparisonTl
+      // Fade in the entire comparison container
+      .to(finalComparisonContainer, {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 1.2,
+        ease: "back.out(1.7)"
+      })
+
+      // Animate the individual cards with stagger
+      .fromTo(finalComparisonContainer.querySelectorAll('.grid > div'), 
+        { 
+          x: -100,
+          opacity: 0,
+          scale: 0.8,
+          rotationY: -15
+        }, 
+        {
+          x: 0,
+          opacity: 1,
+          scale: 1,
+          rotationY: 0,
+          duration: 0.8,
+          stagger: 0.3,
+          ease: "back.out(1.7)"
+        }, 0.5)
+
+      // Dramatic reveal of the total difference with pulsing effect
+      .fromTo(finalComparisonContainer.querySelector('.glow-effect').parentElement,
+        {
+          scale: 0.5,
+          opacity: 0,
+          rotationX: -20
+        },
+        {
+          scale: 1,
+          opacity: 1,
+          rotationX: 0,
+          duration: 1.5,
+          ease: "elastic.out(1, 0.6)"
+        }, 1.5)
+
+      // Add a subtle bounce to the big number
+      .to(finalComparisonContainer.querySelector('.glow-effect'), {
+        scale: 1.1,
+        duration: 0.3,
+        yoyo: true,
+        repeat: 3,
+        ease: "power2.inOut"
+      }, 2.8);
+
+    console.log('💥 Final comparison animation started');
   }
 
   onMount(() => {
@@ -479,13 +540,6 @@
       </svg>
     </div>
 
-    <!-- Year Counter -->
-    <div 
-      bind:this={yearCounter}
-      class="text-2xl md:text-3xl font-bold text-yellow-400 mt-4 opacity-0 transform scale-0"
-    >
-      Year 0
-    </div>
 
     <!-- Legend -->
     <div class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-3 text-sm max-w-4xl w-full">
@@ -517,6 +571,50 @@
         Lines draw in real-time showing your financial trajectory over 25 years
       </p>
     </div>
+
+    <!-- Final dramatic comparison -->
+    <div 
+      bind:this={finalComparisonContainer}
+      class="mt-8 text-center max-w-4xl opacity-0 transform scale-95"
+    >
+      <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+        After 25 Years...
+      </h2>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Without Solar -->
+        <div class="bg-gradient-to-br from-red-900 to-red-800 rounded-2xl p-6 border-2 border-red-500">
+          <div class="text-red-300 text-lg font-semibold mb-2">😰 Without Solar</div>
+          <div class="text-3xl md:text-4xl font-bold text-red-400 mb-2">
+            -€{Math.round(year25NoSolar).toLocaleString()}
+          </div>
+          <div class="text-red-200 text-sm">Money lost to electricity bills</div>
+        </div>
+
+        <!-- With Smart Solar -->
+        <div class="bg-gradient-to-br from-yellow-900 to-orange-800 rounded-2xl p-6 border-2 border-yellow-500">
+          <div class="text-yellow-300 text-lg font-semibold mb-2">💰 With Smart Solar</div>
+          <div class="text-3xl md:text-4xl font-bold text-yellow-400 mb-2">
+            +€{Math.round(year25BestOption).toLocaleString()}
+          </div>
+          <div class="text-yellow-200 text-sm">Profit in your pocket</div>
+        </div>
+      </div>
+
+      <!-- Total difference -->
+      <div class="bg-gradient-to-r from-green-800 via-emerald-700 to-green-800 rounded-3xl p-8 border-4 border-green-400 shadow-2xl">
+        <div class="text-green-200 text-xl mb-3">🚀 That's a Total Difference of:</div>
+        <div class="text-5xl md:text-7xl font-bold text-green-300 mb-3 glow-effect">
+          €{Math.round(totalDifference).toLocaleString()}
+        </div>
+        <div class="text-green-100 text-lg font-semibold">
+          In your favor with solar! 
+        </div>
+        <div class="text-green-200 text-sm mt-2 opacity-80">
+          This is a SIX-FIGURE financial decision
+        </div>
+      </div>
+    </div>
   </div>
 {/if}
 
@@ -524,5 +622,25 @@
   svg {
     background: rgba(255, 255, 255, 0.02);
     border-radius: 8px;
+  }
+  
+  .glow-effect {
+    text-shadow: 0 0 30px rgba(34, 197, 94, 0.8),
+                 0 0 60px rgba(34, 197, 94, 0.4),
+                 0 0 90px rgba(34, 197, 94, 0.2);
+    animation: pulse-glow 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes pulse-glow {
+    from {
+      text-shadow: 0 0 30px rgba(34, 197, 94, 0.8),
+                   0 0 60px rgba(34, 197, 94, 0.4),
+                   0 0 90px rgba(34, 197, 94, 0.2);
+    }
+    to {
+      text-shadow: 0 0 40px rgba(34, 197, 94, 1),
+                   0 0 80px rgba(34, 197, 94, 0.6),
+                   0 0 120px rgba(34, 197, 94, 0.3);
+    }
   }
 </style>

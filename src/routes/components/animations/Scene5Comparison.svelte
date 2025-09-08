@@ -157,8 +157,7 @@
   }
 
   // Watch for visibility changes
-  $: if (visible) {
-    animationStarted = false; // Reset flag when becoming visible
+  $: if (visible && !animationStarted) {
     setTimeout(() => {
       startAnimation();
     }, 100); // Small delay to ensure DOM is ready

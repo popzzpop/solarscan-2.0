@@ -24,7 +24,7 @@
   $: monthlyNetProfit = Math.round(data?.monthlyNetProfitFinanced || 250);
   $: dailyNetProfit = Math.round(monthlyNetProfit / 30);
   $: hourlyNetProfit = (dailyNetProfit / 24).toFixed(2);
-  $: minuteNetProfit = (parseFloat(hourlyNetProfit) / 60).toFixed(2);
+  $: profitPerSecond = dailyNetProfit / 24 / 60 / 60; // Euros per second
 
   // Watch for visibility changes - only start animation once
   $: if (visible && !animationStarted) {
@@ -183,19 +183,16 @@
   }
 
   function startLossCounter() {
-    const increment = parseFloat(minuteNetProfit);
-    
-    const counterInterval = setInterval(() => {
-      lossCounterValue += increment;
-    }, 60000); // Update every minute
+    // Calculate total seconds since demo started
+    const updateInterval = setInterval(() => {
+      if (data?.demoStartTime) {
+        const secondsElapsed = (Date.now() - data.demoStartTime) / 1000;
+        lossCounterValue = secondsElapsed * profitPerSecond;
+      }
+    }, 100); // Update every 100ms for smooth animation
 
-    // Also show seconds ticking
-    const secondInterval = setInterval(() => {
-      lossCounterValue += increment / 60;
-    }, 1000); // Update every second
-
-    // Store intervals for cleanup
-    container?.setAttribute('data-intervals', JSON.stringify([counterInterval, secondInterval]));
+    // Store interval for cleanup
+    container?.setAttribute('data-intervals', JSON.stringify([updateInterval]));
   }
 
   function startUrgencyTimer() {
@@ -277,7 +274,7 @@
         NET PROFIT with €0 down payment!
       </div>
       <div class="text-sm md:text-lg opacity-90 mt-2">
-        That's €{dailyNetProfit}/day • €{hourlyNetProfit}/hour • €{minuteNetProfit}/minute
+        That's €{dailyNetProfit}/day • €{hourlyNetProfit}/hour
       </div>
     </div>
 
@@ -295,10 +292,10 @@
       class="bg-red-900 bg-opacity-30 border-2 border-red-500 rounded-xl p-3 md:p-4 mb-4 md:mb-6 text-center opacity-0 max-w-md mx-auto"
     >
       <div class="text-lg font-bold text-red-300 mb-2">
-        💸 Money lost while you're reading this:
+        💸 Money lost while watching our demo:
       </div>
       <div class="text-3xl font-bold text-red-400">
-        €{lossCounterValue.toFixed(2)}
+        €{lossCounterValue.toFixed(4)}
       </div>
     </div>
 
@@ -311,7 +308,7 @@
         ⏰ Time spent on this page: {formatTime(urgencySeconds)}
       </div>
       <div class="text-xs text-orange-400 mt-1">
-        Potential profit missed: €{(urgencySeconds * parseFloat(minuteNetProfit) / 60).toFixed(2)}
+        Potential profit missed: €{(urgencySeconds * profitPerSecond).toFixed(4)}
       </div>
     </div>
 

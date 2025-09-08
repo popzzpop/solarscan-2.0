@@ -21,6 +21,7 @@
   const { Loader } = GMAPILoader;
 
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import type { BuildingInsightsResponse } from './solar';
   import { findClosestBuilding } from './solar';
 
@@ -73,6 +74,7 @@
   let monthlyEnergyBill = 100;
   let billEntered = false;
   let userContact = null;
+  let demoStartTime = Date.now();
 
   // Initialize app.
   let mapElement: HTMLElement;
@@ -161,6 +163,27 @@
         handleLocationSelected();
       }
     });
+
+    // Check for demo/skip URL parameter
+    const urlParams = new URLSearchParams($page.url.search);
+    if (urlParams.has('demo') || urlParams.has('skip')) {
+      console.log('🚀 Demo mode: Skipping to animation');
+      
+      // Create mock building insights for demo
+      buildingInsights = {
+        solarPotential: {
+          maxSunshineHoursPerYear: 1500,
+          yearlyEnergyDcKwh: 7425,
+          maxArrayAreaMeters2: 30
+        }
+      } as BuildingInsightsResponse;
+      
+      // Skip all showcase/layers and go directly to animation
+      setTimeout(() => {
+        showFullscreenChart = true;
+        monthlyEnergyBill = 100; // Default bill for demo
+      }, 500);
+    }
   });
 
   // Create or update marker at current location
@@ -476,6 +499,7 @@
   <CashFlowCinematic
     bind:isVisible={showFullscreenChart}
     {monthlyEnergyBill}
+    {demoStartTime}
     sunshineHours={buildingInsights?.solarPotential?.maxSunshineHoursPerYear || 1500}
     yearlyKwhConsumption={monthlyEnergyBill / 0.15 * 12}
     onContinueToAnalysis={handleChartContinue}
