@@ -22,6 +22,14 @@
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter' && isValid) {
       handleContinue();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      inputValue = Math.max(5, inputValue + 5);
+      isValid = inputValue > 0;
+    } else if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      inputValue = Math.max(5, inputValue - 5);
+      isValid = inputValue > 0;
     }
   }
 </script>
@@ -57,7 +65,6 @@
             on:keydown={handleKeydown}
             class="w-full pl-8 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-semibold text-center {!isValid ? 'border-red-400' : ''}"
             min="1" 
-            step="5"
             placeholder="100"
             autofocus
           />

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart Debug Test</title>
+</head>
+<body>
+    <h1>Chart Debug Test</h1>
+    
+    <div>
+        <h2>Test Cash Flow Calculations</h2>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        // Replicate the exact cash flow calculation logic
+        const monthlyEnergyBill = 100;
+        const sunshineHours = 1500; 
+        const yearlyKwhConsumption = monthlyEnergyBill / 0.15 * 12; // 8000 kWh/year
+        
+        // Constants from the component
+        const fitLowRate = 0.105;
+        const fitHighRate = 0.15;
+        const energyCostPerKwh = 0.15;
+        const electricityInflationRate = 0.04;
+        const governmentGrantRate = 0.50;
+        const panelCapacity = 450;
+        const costPerPanel = 200;
+        const panels11 = 11;
+        const panels22 = 22;
+        const selfConsumption11 = 0.35;
+        const selfConsumption22 = 0.20;
+        
+        // Production calculations
+        const yearlyProduction11 = (panels11 * panelCapacity * sunshineHours) / 1000;
+        const yearlyProduction22 = (panels22 * panelCapacity * sunshineHours) / 1000;
+        
+        // Installation costs
+        const installationCost11 = panels11 * costPerPanel;
+        const installationCost22 = panels22 * costPerPanel;
+        const installationCost11WithGrant = installationCost11 * (1 - governmentGrantRate);
+        
+        // Self consumption calculations
+        const selfConsumptionKwh11 = Math.min(yearlyProduction11 * selfConsumption11, yearlyKwhConsumption);
+        const selfConsumptionKwh22 = Math.min(yearlyProduction22 * selfConsumption22, yearlyKwhConsumption);
+        
+        // Annual benefits
+        const annualBillSavings11 = selfConsumptionKwh11 * energyCostPerKwh;
+        const annualBillSavings22 = selfConsumptionKwh22 * energyCostPerKwh;
+        const fitIncomeLow11 = yearlyProduction11 * fitLowRate;
+        const fitIncomeHigh11 = yearlyProduction11 * fitHighRate;
+        const fitIncomeHigh22 = yearlyProduction22 * fitHighRate;
+        const totalAnnualBenefitLow11 = fitIncomeLow11 + annualBillSavings11;
+        const totalAnnualBenefitHigh11 = fitIncomeHigh11 + annualBillSavings11;
+        const totalAnnualBenefitHigh22 = fitIncomeHigh22 + annualBillSavings22;
+        
+        // Calculate cash flows for 26 years
+        const years = Array.from({length: 26}, (_, i) => i);
+        
+        // No Solar: Cumulative electricity bills with 4% annual inflation
+        const noSolarCashFlow = years.map(year => {
+            let totalCost = 0;
+            for (let y = 1; y <= year; y++) {
+                const yearlyPrice = energyCostPerKwh * Math.pow(1 + electricityInflationRate, y - 1);
+                totalCost += yearlyKwhConsumption * yearlyPrice;
+            }
+            return -totalCost; // Negative = money lost
+        });
+        
+        // 11 panels + grant (low FiT)
+        const lowFit11CashFlow = years.map(year => {
+            if (year === 0) return -installationCost11WithGrant;
+            let cumulative = -installationCost11WithGrant;
+            for (let y = 1; y <= year; y++) {
+                const degradationFactor = Math.pow(0.98, y - 1);
+                cumulative += totalAnnualBenefitLow11 * degradationFactor;
+            }
+            return cumulative;
+        });
+        
+        // 11 panels fast install (high FiT)
+        const highFit11CashFlow = years.map(year => {
+            if (year === 0) return -installationCost11;
+            let cumulative = -installationCost11;
+            for (let y = 1; y <= year; y++) {
+                const degradationFactor = Math.pow(0.98, y - 1);
+                cumulative += totalAnnualBenefitHigh11 * degradationFactor;
+            }
+            return cumulative;
+        });
+        
+        // Calculate scale
+        const allValues = [
+            ...noSolarCashFlow,
+            ...lowFit11CashFlow,
+            ...highFit11CashFlow
+        ].filter(v => typeof v === 'number' && isFinite(v));
+        
+        const maxValue = Math.max(...allValues);
+        const minValue = Math.min(...allValues);
+        const range = maxValue - minValue;
+        const padding = range * 0.1;
+        const chartMax = maxValue + padding;
+        const chartMin = minValue - padding;
+        
+        // Output results
+        const output = {
+            'Input Values': {
+                monthlyEnergyBill,
+                sunshineHours,
+                yearlyKwhConsumption,
+                yearlyProduction11,
+                installationCost11,
+                installationCost11WithGrant,
+                totalAnnualBenefitLow11
+            },
+            'Sample Cash Flows': {
+                'No Solar [0,1,5,10,25]': [
+                    noSolarCashFlow[0], 
+                    noSolarCashFlow[1], 
+                    noSolarCashFlow[5], 
+                    noSolarCashFlow[10], 
+                    noSolarCashFlow[25]
+                ],
+                'Low FiT 11 [0,1,5,10,25]': [
+                    lowFit11CashFlow[0], 
+                    lowFit11CashFlow[1], 
+                    lowFit11CashFlow[5], 
+                    lowFit11CashFlow[10], 
+                    lowFit11CashFlow[25]
+                ],
+                'High FiT 11 [0,1,5,10,25]': [
+                    highFit11CashFlow[0], 
+                    highFit11CashFlow[1], 
+                    highFit11CashFlow[5], 
+                    highFit11CashFlow[10], 
+                    highFit11CashFlow[25]
+                ]
+            },
+            'Chart Scale': {
+                chartMax,
+                chartMin,
+                range,
+                maxValue,
+                minValue
+            }
+        };
+        
+        document.getElementById('output').textContent = JSON.stringify(output, null, 2);
+        
+        // Test valueToY function
+        const chartLeft = 100;
+        const chartRight = 900;
+        const chartTop = 50;
+        const chartBottom = 500;
+        const chartHeight = chartBottom - chartTop;
+        
+        const valueToY = (value) => {
+            if (!isFinite(value)) {
+                return chartBottom;
+            }
+            const safeMax = isFinite(chartMax) ? chartMax : 50000;
+            const safeMin = isFinite(chartMin) ? chartMin : -50000;
+            const range = safeMax - safeMin;
+            const minRange = 1000;
+            
+            if (range < minRange) {
+                const mid = (safeMax + safeMin) / 2;
+                const expandedMax = mid + minRange / 2;
+                const expandedMin = mid - minRange / 2;
+                return chartBottom - ((value - expandedMin) / (expandedMax - expandedMin)) * chartHeight;
+            }
+            
+            return chartBottom - ((value - safeMin) / (safeMax - safeMin)) * chartHeight;
+        };
+        
+        const testValues = [0, -10000, -25000, 25000];
+        console.log('Chart Scale:', { chartMax, chartMin, range });
+        console.log('ValueToY Test:', testValues.map(val => ({ 
+            input: val, 
+            output: valueToY(val),
+            percentage: ((val - chartMin) / (chartMax - chartMin)) * 100
+        })));
+    </script>
+</body>
+</html>

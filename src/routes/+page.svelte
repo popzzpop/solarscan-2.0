@@ -33,7 +33,7 @@
   import PDFReportGenerator from './components/PDFReportGenerator.svelte';
   import DownloadButton from './components/DownloadButton.svelte';
   import MonthlyBillModal from './components/MonthlyBillModal.svelte';
-  import FullscreenCashFlowChart from './components/FullscreenCashFlowChart.svelte';
+  import CashFlowCinematic from './components/CashFlowCinematic.svelte';
   import ContactCaptureModal from './components/ContactCaptureModal.svelte';
   import { initEmailJS, sendLeadNotification, type LeadData } from '$lib/emailService';
 
@@ -471,14 +471,15 @@
   onContinue={handleBillContinue}
 />
 
-<!-- Fullscreen Cash Flow Chart -->
+<!-- Cinematic Cash Flow Animation -->
 {#if buildingInsights}
-  <FullscreenCashFlowChart
+  <CashFlowCinematic
     bind:isVisible={showFullscreenChart}
     {monthlyEnergyBill}
-    yearlyProduction={buildingInsights.solarPotential.maxArrayPanelsCount * buildingInsights.solarPotential.panelCapacityWatts * buildingInsights.solarPotential.maxSunshineHoursPerYear / 1000}
+    sunshineHours={buildingInsights?.solarPotential?.maxSunshineHoursPerYear || 1500}
     yearlyKwhConsumption={monthlyEnergyBill / 0.15 * 12}
     onContinueToAnalysis={handleChartContinue}
+    showHighFitOnly={true}
   />
 {/if}
 

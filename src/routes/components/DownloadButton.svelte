@@ -38,7 +38,7 @@
 </script>
 
 {#if isVisible && canGenerateReport}
-  <div class="fixed bottom-4 right-4 z-60 transition-all duration-500 transform {isVisible ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}">
+  <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-60 transition-all duration-500 {isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}">
     <button
       on:click={handleDownload}
       disabled={isGenerating}
@@ -62,7 +62,7 @@
 
 {#if isVisible && !canGenerateReport}
   <!-- Fallback message if not enough data -->
-  <div class="fixed bottom-4 right-4 z-60 bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg">
+  <div class="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-60 bg-yellow-500 text-white px-4 py-3 rounded-lg shadow-lg">
     <div class="text-sm font-medium">
       📊 Analyzing property...
     </div>

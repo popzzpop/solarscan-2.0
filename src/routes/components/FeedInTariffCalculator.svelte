@@ -15,14 +15,18 @@
   $: installationCostLow = installationCost * (1 - governmentGrantRate); // 50% grant applied
   $: installationCostHigh = installationCost; // No grant
 
-  // Calculate FIT income - ALL production is sold to grid at FiT rate
+  // Self-consumption calculations
+  const selfConsumptionRate = 0.35; // 35% of production typically used on-site
+  $: selfConsumptionKwh = Math.min(yearlyProduction * selfConsumptionRate, yearlyKwhConsumption);
+  $: annualBillSavings = selfConsumptionKwh * energyCostPerKwh;
+
+  // Calculate FIT income - Production sold to grid at FiT rate
   $: fitIncomeLow = yearlyProduction * fitLowRate;
   $: fitIncomeHigh = yearlyProduction * fitHighRate;
   
-  // No energy savings - all consumption is still bought from grid at €0.15/kWh
-  // Total annual benefit is just the FiT income (compared to no solar baseline)
-  $: totalAnnualBenefitLow = fitIncomeLow;
-  $: totalAnnualBenefitHigh = fitIncomeHigh;
+  // Total annual benefit includes both FiT income AND bill savings
+  $: totalAnnualBenefitLow = fitIncomeLow + annualBillSavings;
+  $: totalAnnualBenefitHigh = fitIncomeHigh + annualBillSavings;
 
   // Simple payback period
   $: paybackPeriodLow = installationCostLow / totalAnnualBenefitLow;
@@ -34,29 +38,72 @@
   function calculateCashFlowData() {
     // Add safety checks
     if (!yearlyKwhConsumption || !installationCost || !totalAnnualBenefitLow || !totalAnnualBenefitHigh) {
-      console.log('FeedInTariffCalculator: Missing data for chart calculation:', {
+      console.warn('FeedInTariffCalculator: Missing data for chart calculation, using demo data:', {
         yearlyKwhConsumption,
         installationCost,
         totalAnnualBenefitLow,
         totalAnnualBenefitHigh
       });
-      // Return default values to prevent chart errors
+      
+      // Return meaningful demo data to show how the chart works
+      const years = Array.from({length: 26}, (_, i) => i);
+      const demoYearlyConsumption = 5000; // 5000 kWh per year
+      const demoInstallationCost = 8000; // €8000 installation
+      const demoAnnualBenefitLow = 1200; // €1200 per year
+      const demoAnnualBenefitHigh = 1800; // €1800 per year
+      
+      // Demo calculations with updated benefits
+      const demoAnnualBillSavings = 500; // €500 bill savings from self-consumption
+      const demoTotalBenefitLow = demoAnnualBenefitLow + demoAnnualBillSavings;
+      const demoTotalBenefitHigh = demoAnnualBenefitHigh + demoAnnualBillSavings;
+      
+      const noSolarDemo = years.map(year => -(year * demoYearlyConsumption * 0.15)); // Electricity bills
+      const lowFitDemo = years.map(year => {
+        if (year === 0) return -demoInstallationCost * 0.5; // With grant
+        let cumulative = -demoInstallationCost * 0.5;
+        for (let y = 1; y <= year; y++) {
+          const degradationFactor = Math.pow(0.98, y - 1);
+          cumulative += demoTotalBenefitLow * degradationFactor;
+        }
+        return cumulative;
+      });
+      const highFitDemo = years.map(year => {
+        if (year === 0) return -demoInstallationCost;
+        let cumulative = -demoInstallationCost;
+        for (let y = 1; y <= year; y++) {
+          const degradationFactor = Math.pow(0.98, y - 1);
+          cumulative += demoTotalBenefitHigh * degradationFactor;
+        }
+        return cumulative;
+      });
+      
+      const allDemoValues = [...noSolarDemo, ...lowFitDemo, ...highFitDemo];
+      const demoMax = Math.max(...allDemoValues) * 1.1;
+      const demoMin = Math.min(...allDemoValues) * 1.1;
+      
+      const chartLeft = 80;
+      const chartRight = 850;
+      const chartTop = 10;
+      const chartBottom = 790;
+      const chartWidth = chartRight - chartLeft;
+      const chartHeight = chartBottom - chartTop;
+      
       return {
-        years: Array.from({length: 26}, (_, i) => i),
-        noSolarCashFlow: Array(26).fill(0),
-        lowFitCashFlow: Array(26).fill(0),
-        highFitCashFlow: Array(26).fill(0),
-        chartMax: 1000,
-        chartMin: -1000,
-        range: 2000,
-        chartLeft: 80,
-        chartRight: 820,
-        chartTop: 40,
-        chartBottom: 320,
-        chartWidth: 740,
-        chartHeight: 280,
-        valueToY: (value) => 180,
-        yearToX: (year) => 80 + (year / 25) * 740
+        years,
+        noSolarCashFlow: noSolarDemo,
+        lowFitCashFlow: lowFitDemo,
+        highFitCashFlow: highFitDemo,
+        chartMax: demoMax,
+        chartMin: demoMin,
+        range: demoMax - demoMin,
+        chartLeft,
+        chartRight,
+        chartTop,
+        chartBottom,
+        chartWidth,
+        chartHeight,
+        valueToY: (value) => chartBottom - ((value - demoMin) / (demoMax - demoMin)) * chartHeight,
+        yearToX: (year) => chartLeft + (year / 25) * chartWidth
       };
     }
 
@@ -86,10 +133,17 @@
       return cumulative;
     });
     
-    console.log('FeedInTariffCalculator: Chart data calculated:', {
+    console.log('FeedInTariffCalculator: Chart data calculated with real data:', {
+      yearlyProduction,
+      yearlyKwhConsumption,
+      installationCost,
+      totalAnnualBenefitLow,
+      totalAnnualBenefitHigh,
       sampleNoSolar: noSolarCashFlow.slice(0, 5),
       sampleLowFit: lowFitCashFlow.slice(0, 5),
-      sampleHighFit: highFitCashFlow.slice(0, 5)
+      sampleHighFit: highFitCashFlow.slice(0, 5),
+      chartMax,
+      chartMin
     });
     
     // Calculate dynamic scale
@@ -104,14 +158,14 @@
     
     // Chart dimensions
     const chartLeft = 80;
-    const chartRight = 820;
-    const chartTop = 40;
-    const chartBottom = 320;
+    const chartRight = 850;
+    const chartTop = 10;
+    const chartBottom = 790;
     const chartWidth = chartRight - chartLeft;
     const chartHeight = chartBottom - chartTop;
     
     // Helper functions
-    const valueToY = (value) => chartBottom - ((value - chartMin) / range) * chartHeight;
+    const valueToY = (value) => chartBottom - ((value - chartMin) / (chartMax - chartMin)) * chartHeight;
     const yearToX = (year) => chartLeft + (year / 25) * chartWidth;
     
     return { 
@@ -171,10 +225,24 @@
           <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(installationCostHigh)}</td>
         </tr>
         <tr class="border-b border-gray-200">
+          <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Installation Wait Time</td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-gray-500">N/A</td>
+          <td class="border border-gray-300 px-4 py-3 text-center">
+            <span class="text-orange-600 font-semibold">⏳ Up to 12 months</span>
+            <div class="text-xs text-orange-500 mt-1">Grant processing time</div>
+          </td>
+          <td class="border border-gray-300 px-4 py-3 text-center">
+            <div class="inline-block bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-2 rounded-full font-bold text-sm shadow-lg">
+              ⚡ 7-14 DAYS
+            </div>
+            <div class="text-xs text-green-700 mt-2 font-semibold">FAST INSTALLATION!</div>
+          </td>
+        </tr>
+        <tr class="border-b border-gray-200">
           <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Annual Bill Savings</td>
           <td class="border border-gray-300 px-4 py-3 text-center text-red-600">€0</td>
-          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">€0<br><span class="text-xs text-gray-500">All production sold</span></td>
-          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">€0<br><span class="text-xs text-gray-500">All production sold</span></td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-blue-600">{showMoney(annualBillSavings)}<br><span class="text-xs text-gray-500">35% self-consumption</span></td>
+          <td class="border border-gray-300 px-4 py-3 text-center text-green-600">{showMoney(annualBillSavings)}<br><span class="text-xs text-gray-500">35% self-consumption</span></td>
         </tr>
         <tr class="border-b border-gray-200">
           <td class="border border-gray-300 px-4 py-3 font-medium text-gray-800">Annual FiT Income</td>
@@ -204,95 +272,37 @@
     </table>
   </div>
 
-  <!-- 25-Year Cash Flow Chart -->
-  <div class="mb-6">
-    <h4 class="font-bold text-gray-800 mb-4 text-center">📈 25-Year Cumulative Cash Flow Comparison</h4>
-    
-    <!-- Dynamic SVG Chart -->
-    <div class="bg-gray-50 border border-gray-300 rounded-lg p-4">
-      <svg width="100%" height="400" viewBox="0 0 900 400" class="overflow-visible">
-        <!-- Grid lines and Y-axis labels -->
-        {#each Array(7) as _, i}
-          <line x1={cashFlowData.chartLeft} y1={cashFlowData.chartTop + i * (cashFlowData.chartHeight / 6)} x2={cashFlowData.chartRight} y2={cashFlowData.chartTop + i * (cashFlowData.chartHeight / 6)} stroke="#e5e7eb" stroke-width="1" />
-          <text x={cashFlowData.chartLeft - 10} y={cashFlowData.chartTop + i * (cashFlowData.chartHeight / 6) + 4} fill="#6b7280" text-anchor="end" font-size="11">
-            {showMoney(Math.round(cashFlowData.chartMax - (i / 6) * cashFlowData.range))}
-          </text>
-        {/each}
-        
-        <!-- X-axis year labels -->
-        {#each [0, 5, 10, 15, 20, 25] as year}
-          <text x={cashFlowData.yearToX(year)} y={cashFlowData.chartBottom + 20} fill="#6b7280" text-anchor="middle" font-size="11">
-            Year {year}
-          </text>
-          <line x1={cashFlowData.yearToX(year)} y1={cashFlowData.chartBottom} x2={cashFlowData.yearToX(year)} y2={cashFlowData.chartBottom + 5} stroke="#9ca3af" stroke-width="1" />
-        {/each}
-        
-        <!-- Zero line (if it's within the visible range) -->
-        {#if cashFlowData.chartMin <= 0 && cashFlowData.chartMax >= 0}
-          <line x1={cashFlowData.chartLeft} y1={cashFlowData.valueToY(0)} x2={cashFlowData.chartRight} y2={cashFlowData.valueToY(0)} stroke="#374151" stroke-width="2" stroke-dasharray="5,5" />
-          <text x={cashFlowData.chartLeft - 10} y={cashFlowData.valueToY(0) - 5} fill="#374151" text-anchor="end" font-size="10" font-weight="bold">Break Even</text>
-        {/if}
-        
-        <!-- Chart border -->
-        <rect x={cashFlowData.chartLeft} y={cashFlowData.chartTop} width={cashFlowData.chartWidth} height={cashFlowData.chartHeight} fill="none" stroke="#9ca3af" stroke-width="1" />
-        
-        <!-- No Solar Line (red, declining) -->
-        <polyline 
-          points={cashFlowData.years.map((year, i) => `${cashFlowData.yearToX(year)},${cashFlowData.valueToY(cashFlowData.noSolarCashFlow[i])}`).join(' ')}
-          fill="none" 
-          stroke="#dc2626" 
-          stroke-width="3"
-        />
-        
-        <!-- Low FiT Line (blue) -->
-        <polyline 
-          points={cashFlowData.years.map((year, i) => `${cashFlowData.yearToX(year)},${cashFlowData.valueToY(cashFlowData.lowFitCashFlow[i])}`).join(' ')}
-          fill="none" 
-          stroke="#2563eb" 
-          stroke-width="3"
-        />
-        
-        <!-- High FiT Line (green) -->
-        <polyline 
-          points={cashFlowData.years.map((year, i) => `${cashFlowData.yearToX(year)},${cashFlowData.valueToY(cashFlowData.highFitCashFlow[i])}`).join(' ')}
-          fill="none" 
-          stroke="#16a34a" 
-          stroke-width="3"
-        />
-        
-        <!-- Data points for better readability -->
-        {#each [5, 10, 15, 20, 25] as year}
-          <!-- No Solar points -->
-          <circle cx={cashFlowData.yearToX(year)} cy={cashFlowData.valueToY(cashFlowData.noSolarCashFlow[year])} r="4" fill="#dc2626" />
-          <!-- Low FiT points -->
-          <circle cx={cashFlowData.yearToX(year)} cy={cashFlowData.valueToY(cashFlowData.lowFitCashFlow[year])} r="4" fill="#2563eb" />
-          <!-- High FiT points -->
-          <circle cx={cashFlowData.yearToX(year)} cy={cashFlowData.valueToY(cashFlowData.highFitCashFlow[year])} r="4" fill="#16a34a" />
-        {/each}
-        
-        <!-- Legend -->
-        <g transform="translate(600, 60)">
-          <rect x="0" y="0" width="200" height="90" fill="white" stroke="#d1d5db" stroke-width="1" rx="4" />
-          <text x="10" y="15" fill="#374151" font-size="12" font-weight="bold">25-Year Comparison</text>
-          
-          <line x1="10" y1="30" x2="30" y2="30" stroke="#dc2626" stroke-width="3" />
-          <circle cx="20" cy="30" r="3" fill="#dc2626" />
-          <text x="35" y="35" fill="#374151" font-size="11">No Solar</text>
-          
-          <line x1="10" y1="50" x2="30" y2="50" stroke="#2563eb" stroke-width="3" />
-          <circle cx="20" cy="50" r="3" fill="#2563eb" />
-          <text x="35" y="55" fill="#374151" font-size="11">Low FiT (€0.105/kWh)</text>
-          
-          <line x1="10" y1="70" x2="30" y2="70" stroke="#16a34a" stroke-width="3" />
-          <circle cx="20" cy="70" r="3" fill="#16a34a" />
-          <text x="35" y="75" fill="#374151" font-size="11">High FiT (€0.15/kWh)</text>
-        </g>
-        
-        <!-- Chart title and axis labels -->
-        <text x="450" y="25" fill="#374151" text-anchor="middle" font-size="16" font-weight="bold">25-Year Cumulative Cash Flow</text>
-        <text x="450" y="380" fill="#6b7280" text-anchor="middle" font-size="12">Years</text>
-        <text x="25" y="200" fill="#6b7280" text-anchor="middle" font-size="12" transform="rotate(-90, 25, 200)">Cumulative Cash Flow (€)</text>
-      </svg>
+  <!-- Fast Installation Highlight -->
+  <div class="mb-6 p-4 bg-gradient-to-r from-green-100 via-emerald-50 to-green-100 border-2 border-green-300 rounded-xl shadow-lg">
+    <div class="text-center">
+      <div class="inline-flex items-center justify-center w-12 h-12 bg-green-500 rounded-full mb-3">
+        <span class="text-2xl">⚡</span>
+      </div>
+      <h4 class="text-xl font-bold text-green-800 mb-2">Get Solar in Just 7-14 Days!</h4>
+      <p class="text-green-700 font-medium mb-2">
+        Skip the wait - Choose High FiT (€0.15/kWh) for immediate installation
+      </p>
+      <p class="text-sm text-green-600">
+        Why wait 12 months for grants when you can start earning €{showMoney(fitIncomeHigh + annualBillSavings)} per year right away?
+      </p>
+    </div>
+  </div>
+
+  <!-- Chart moved to fullscreen - showing summary instead -->
+  <div class="mb-6 p-6 bg-gradient-to-r from-blue-50 to-green-50 border-2 border-blue-200 rounded-xl">
+    <h4 class="font-bold text-gray-800 mb-4 text-center">📈 25-Year Financial Impact Summary</h4>
+    <p class="text-center text-gray-600 mb-4">
+      View the detailed cash flow comparison in your personalized analysis above
+    </p>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+      <div class="bg-green-100 rounded-lg p-4">
+        <p class="text-2xl font-bold text-green-600">{showMoney(total25YearBenefitHigh)}</p>
+        <p class="text-sm text-green-700">25-Year Net Benefit (Fast Install)</p>
+      </div>
+      <div class="bg-blue-100 rounded-lg p-4">
+        <p class="text-2xl font-bold text-blue-600">{showMoney(total25YearBenefitLow)}</p>
+        <p class="text-sm text-blue-700">25-Year Net Benefit (With Grant)</p>
+      </div>
     </div>
   </div>
 

@@ -11,9 +11,7 @@
   export let googleMapsApiKey: string;
   export let buildingInsights: BuildingInsightsResponse | undefined;
   export let buildingDataLoading: boolean;
-
-  // User settings for Malta market
-  let monthlyEnergyBill = 100; // €100 monthly average
+  export let monthlyEnergyBill: number;
   let energyCostPerKwh = 0.15; // €0.15/kWh
   let panelCapacityWatts = 450; // 450W panels
   let installationCostPerPanel = 120; // €120 per panel installed
@@ -43,22 +41,36 @@
   let energyCovered = 0;
 
 
-  $: if (buildingInsights && configId !== undefined) {
-    const config = buildingInsights.solarPotential.solarPanelConfigs[configId];
-    const panelCapacityRatio = panelCapacityWatts / buildingInsights.solarPotential.panelCapacityWatts;
-    
-    installationSizeKw = (config.panelsCount * panelCapacityWatts) / 1000;
-    installationCost = config.panelsCount * installationCostPerPanel;
-    yearlyProduction = config.yearlyEnergyDcKwh * panelCapacityRatio * dcToAcDerate;
-    energyCovered = yearlyProduction / yearlyKwhConsumption;
+  $: if (buildingInsights) {
+    if (configId !== undefined) {
+      // Use the optimal configuration
+      const config = buildingInsights.solarPotential.solarPanelConfigs[configId];
+      const panelCapacityRatio = panelCapacityWatts / buildingInsights.solarPotential.panelCapacityWatts;
+      
+      installationSizeKw = (config.panelsCount * panelCapacityWatts) / 1000;
+      installationCost = config.panelsCount * installationCostPerPanel;
+      yearlyProduction = config.yearlyEnergyDcKwh * panelCapacityRatio * dcToAcDerate;
+      energyCovered = yearlyProduction / yearlyKwhConsumption;
+    } else {
+      // Fallback to maximum capacity configuration for chart display
+      console.log('SolarDashboard: Using maximum capacity as fallback for chart calculation');
+      const maxPanelsCount = buildingInsights.solarPotential.maxArrayPanelsCount;
+      const panelCapacityRatio = panelCapacityWatts / buildingInsights.solarPotential.panelCapacityWatts;
+      
+      // Use a reasonable percentage of max capacity (e.g., 80%) for fallback
+      const fallbackPanelsCount = Math.floor(maxPanelsCount * 0.8);
+      installationSizeKw = (fallbackPanelsCount * panelCapacityWatts) / 1000;
+      installationCost = fallbackPanelsCount * installationCostPerPanel;
+      
+      // Estimate yearly production based on max sunshine hours
+      const maxSunshineHours = buildingInsights.solarPotential.maxSunshineHoursPerYear;
+      yearlyProduction = (fallbackPanelsCount * panelCapacityWatts * maxSunshineHours / 1000) * dcToAcDerate;
+      energyCovered = yearlyProduction / yearlyKwhConsumption;
+    }
   }
 
 
 
-  function updateEnergyBill(event: Event) {
-    const target = event.target as HTMLInputElement;
-    monthlyEnergyBill = parseFloat(target.value) || 0;
-  }
 </script>
 
 <div class="space-y-6">
@@ -74,22 +86,17 @@
     <SolarIrradiationDisplay {buildingInsights} />
 
 
-    <!-- Quick Settings Panel -->
+    <!-- Energy Usage Display -->
     <div class="bg-white border border-gray-200 rounded-lg p-4">
       <h3 class="font-semibold text-gray-800 mb-3">⚡ Your Energy Usage</h3>
-      <div class="grid grid-cols-1 gap-4">
-        <div>
-          <label for="monthly-bill" class="block text-sm font-medium text-gray-700 mb-1">Monthly Energy Bill (€)</label>
-          <input 
-            id="monthly-bill"
-            type="number" 
-            value={monthlyEnergyBill}
-            on:input={updateEnergyBill}
-            class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            min="0" 
-            step="10"
-          />
-          <p class="text-xs text-gray-500 mt-1">≈ {Math.round(monthlyKwhConsumption)} kWh per month</p>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="text-center p-3 bg-blue-50 rounded-lg">
+          <p class="text-2xl font-bold text-blue-600">€{monthlyEnergyBill}</p>
+          <p class="text-sm text-blue-700">Monthly Bill</p>
+        </div>
+        <div class="text-center p-3 bg-green-50 rounded-lg">
+          <p class="text-2xl font-bold text-green-600">{Math.round(monthlyKwhConsumption)}</p>
+          <p class="text-sm text-green-700">kWh per month</p>
         </div>
       </div>
     </div>

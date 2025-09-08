@@ -9,6 +9,8 @@
   export let googleMapsApiKey: string;
   export let buildingInsights: BuildingInsightsResponse | undefined;
   export let buildingDataLoading: boolean;
+  export let monthlyEnergyBill: number;
+  export let billEntered: boolean;
 
 
   function closeSidebar() {
@@ -34,8 +36,13 @@
       <p class="text-green-700 text-sm">Detailed insights and calculations for your property</p>
     </div>
 
-    {#if location}
-      <SolarDashboard {location} {map} {geometryLibrary} {googleMapsApiKey} {buildingInsights} {buildingDataLoading} />
+    {#if location && billEntered}
+      <SolarDashboard {location} {map} {geometryLibrary} {googleMapsApiKey} {buildingInsights} {buildingDataLoading} {monthlyEnergyBill} />
+    {:else if location && !billEntered}
+      <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+        <p class="text-blue-800 font-semibold mb-2">⏳ Waiting for your energy bill</p>
+        <p class="text-blue-700 text-sm">Complete the monthly bill form to see your personalized solar analysis.</p>
+      </div>
     {/if}
 
     <div class="grow" />

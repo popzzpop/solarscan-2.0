@@ -10,6 +10,7 @@ SolarScan Malta is the premier professional solar analysis platform designed spe
 💰 **Feed-in Tariff Calculator** - Compare high (€0.15/kWh) vs grant-eligible (€0.105/kWh) rates  
 🏦 **BOV Financing Integration** - Calculate loan payments with 0.5% interest rates
 📊 **25-Year Financial Projections** - Complete ROI analysis and payback periods
+📧 **Smart Lead Capture** - Multi-channel contact capture with instant email notifications
 🎯 **Professional Installation Quotes** - Direct contact with licensed installers
 
 ## Requirements
@@ -21,12 +22,25 @@ To run the samples, you will need:
 - An [API key] associated with the project above
 - Current version of Node.js and NPM
 
-## Google Maps API key
+## Environment Setup
 
-Once you have your API key, update the [`.env`](.env) file with your key.
+Copy the example file and configure your credentials:
 
 ```sh
+cp .env.example .env
+```
+
+Update the `.env` file with your keys:
+
+```sh
+# Google Maps API
 VITE_GOOGLE_MAPS_API_KEY="YOUR_API_KEY"
+
+# EmailJS for Lead Capture (sign up at emailjs.com)
+VITE_EMAILJS_SERVICE_ID="service_xxxxx"
+VITE_EMAILJS_TEMPLATE_ID="template_xxxxx"  
+VITE_EMAILJS_PUBLIC_KEY="your_public_key"
+VITE_NOTIFICATION_EMAIL="your-email@example.com"
 ```
 
 ## Running the app
