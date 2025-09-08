@@ -32,13 +32,7 @@ const config = {
 
     // https://kit.svelte.dev/docs/configuration#version
     version: {
-      name: (() => {
-        try {
-          return child_process.execSync('git rev-parse HEAD').toString().trim();
-        } catch {
-          return process.env.RAILWAY_GIT_COMMIT_SHA || 'production';
-        }
-      })(),
+      name: process.env.RAILWAY_GIT_COMMIT_SHA || 'production',
     },
   },
 };
