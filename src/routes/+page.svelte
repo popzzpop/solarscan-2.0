@@ -378,9 +378,15 @@
 
   // Handle monthly bill modal completion - now shows fullscreen chart
   function handleBillContinue(bill: number) {
+    console.log('🔧 +page.svelte: handleBillContinue called with bill:', bill);
+    console.log('🔧 +page.svelte: Current state - showMonthlyBillModal:', showMonthlyBillModal);
+    console.log('🔧 +page.svelte: Current state - showFullscreenChart:', showFullscreenChart);
+    
     monthlyEnergyBill = bill;
     billEntered = true;
     showMonthlyBillModal = false;
+    
+    console.log('🔧 +page.svelte: Updated state - showMonthlyBillModal:', showMonthlyBillModal);
     
     // Ensure we have building insights for the chart
     if (!buildingInsights) {
@@ -407,8 +413,11 @@
     }
     
     // Show dramatic fullscreen chart
+    console.log('🔧 +page.svelte: Setting timeout to show fullscreen chart in 300ms');
     setTimeout(() => {
+      console.log('🔧 +page.svelte: Timeout fired - setting showFullscreenChart to true');
       showFullscreenChart = true;
+      console.log('🔧 +page.svelte: showFullscreenChart is now:', showFullscreenChart);
     }, 300);
   }
 

@@ -7,9 +7,17 @@
   let isValid = true;
 
   function handleContinue() {
+    console.log('🔧 MonthlyBillModal: handleContinue called with inputValue:', inputValue);
+    console.log('🔧 MonthlyBillModal: isValid:', isValid);
+    console.log('🔧 MonthlyBillModal: onContinue function:', typeof onContinue);
+    
     if (inputValue > 0) {
+      console.log('🔧 MonthlyBillModal: Calling onContinue with value:', inputValue);
       onContinue(inputValue);
+      console.log('🔧 MonthlyBillModal: Setting isVisible to false');
       isVisible = false;
+    } else {
+      console.log('🔧 MonthlyBillModal: Input value invalid, not continuing');
     }
   }
 
