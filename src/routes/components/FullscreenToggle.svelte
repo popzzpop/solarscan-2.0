@@ -82,7 +82,7 @@
 </script>
 
 <!-- Fullscreen and PWA Controls - Mobile optimized floating buttons -->
-<div class="fixed bottom-4 right-4 z-40 flex flex-col gap-2">
+<div class="fixed bottom-4 left-4 z-40 flex flex-col gap-2">
   
   <!-- PWA Install Button -->
   {#if showInstallButton}

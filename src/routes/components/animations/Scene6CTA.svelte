@@ -161,23 +161,23 @@
         startUrgencyTimer();
       }, 4.2)
 
-      // CTA button dramatic entrance
+      // CTA button dramatic entrance - Delayed more on mobile
       .to(ctaButton, {
         opacity: 1,
         y: 0,
         scale: 1,
         duration: 1.0,
         ease: "elastic.out(1, 0.75)"
-      }, 4.5)
+      }, window.innerWidth < 768 ? 6.5 : 4.5)
 
-      // Add button pulsing effect
+      // Add button pulsing effect - Also delayed on mobile
       .to(ctaButton, {
         scale: 1.05,
         duration: 1.0,
         yoyo: true,
         repeat: -1,
         ease: "power2.inOut"
-      }, 5.5);
+      }, window.innerWidth < 768 ? 7.5 : 5.5);
 
     console.log('🚨 Scene 6 (CTA) animation started');
   }

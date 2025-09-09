@@ -20,6 +20,7 @@
       layerId: 'rgb',
       title: 'Analyzing Your Roof',
       description: 'High-resolution aerial imagery analysis...',
+      mobileDesc: 'Capturing roof',
       duration: 8000,
       message: '📸 Capturing roof details',
       toggleEffect: true
@@ -28,6 +29,7 @@
       layerId: 'mask',
       title: 'Identifying Suitable Roof Areas',
       description: 'Finding optimal spots for solar panels...',
+      mobileDesc: 'Finding areas',
       duration: 8000,
       message: '🎯 Mapping installable areas',
       toggleEffect: true
@@ -36,6 +38,7 @@
       layerId: 'dsm',
       title: 'Building Height Analysis',
       description: '3D surface model for shadow calculations...',
+      mobileDesc: 'Analyzing height',
       duration: 8000,
       message: '🏗️ Analyzing roof structure',
       toggleEffect: true
@@ -44,6 +47,7 @@
       layerId: 'monthlyFlux',
       title: 'Monthly Variations',
       description: 'Seasonal patterns throughout the year...',
+      mobileDesc: 'Monthly data',
       duration: 6000,
       message: '📅 Monthly solar data'
     },
@@ -51,6 +55,7 @@
       layerId: 'hourlyShade',
       title: 'Summer Solstice Shadows',
       description: 'June 21 - Longest day (15.5h daylight)',
+      mobileDesc: 'Summer shadows',
       duration: 16000,
       message: '☀️ Summer shadows - best case',
       dayOfYear: 172
@@ -59,6 +64,7 @@
       layerId: 'hourlyShade',
       title: 'Fall Equinox Shadows',
       description: 'September 22 - Equal day/night (12h daylight)',
+      mobileDesc: 'Equinox shadows',
       duration: 16000,
       message: '🌤️ Equinox shadows - average case',
       dayOfYear: 265
@@ -67,6 +73,7 @@
       layerId: 'hourlyShade',
       title: 'Winter Solstice Shadows',
       description: 'December 21 - Shortest day (9.5h daylight)',
+      mobileDesc: 'Winter shadows',
       duration: 16000,
       message: '❄️ Winter shadows - worst case',
       dayOfYear: 355
@@ -75,6 +82,7 @@
       layerId: 'dsm',
       title: 'Analysis Complete',
       description: 'Professional solar assessment finished',
+      mobileDesc: 'Analysis complete',
       duration: 3000,
       message: '✅ Ready for installation planning'
     }
@@ -410,7 +418,7 @@
           </div>
         </div>
         <span class="text-blue-600 font-medium text-xs">
-          {showcaseSteps[currentStep]?.message?.split(' ')[0] || ''} {timeIndicator}
+          {showcaseSteps[currentStep]?.message?.split(' ')[0] || ''} {showcaseSteps[currentStep]?.mobileDesc || ''}
         </span>
       </div>
     </div>

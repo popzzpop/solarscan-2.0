@@ -10,7 +10,9 @@
   let container: HTMLDivElement;
   let chartContainer: HTMLDivElement;
   let title: HTMLDivElement;
+  let titleDesktop: HTMLDivElement;
   let subtitle: HTMLDivElement;
+  let subtitleDesktop: HTMLDivElement;
   let chartSvg: SVGElement;
   let finalComparisonContainer: HTMLDivElement;
   
@@ -193,8 +195,8 @@
     
     animationStarted = true;
 
-    // Set initial states
-    gsap.set([title, subtitle, chartContainer, finalComparisonContainer], { 
+    // Set initial states for mobile and desktop elements
+    gsap.set([title, titleDesktop, subtitle, subtitleDesktop, chartContainer, finalComparisonContainer], { 
       opacity: 0,
       y: 30,
       scale: 0.95
@@ -215,7 +217,7 @@
         duration: 0.5 
       })
       
-      .to(title, {
+      .to([title, titleDesktop], {
         opacity: 1,
         y: 0,
         scale: 1,
@@ -223,7 +225,7 @@
         ease: "back.out(1.7)"
       }, 0.5)
 
-      .to(subtitle, {
+      .to([subtitle, subtitleDesktop], {
         opacity: 1,
         y: 0,
         duration: 0.6
@@ -434,28 +436,44 @@
 {#if visible}
   <div 
     bind:this={container}
-    class="absolute inset-0 flex flex-col items-center justify-center text-white bg-gradient-to-br from-gray-900 via-black to-blue-900 opacity-0 p-4 overflow-y-auto"
+    class="absolute inset-0 flex flex-col text-white bg-gradient-to-br from-gray-900 via-black to-blue-900 opacity-0 overflow-y-auto"
   >
-    <!-- Scene title - Mobile optimized -->
-    <div 
-      bind:this={title}
-      class="text-2xl md:text-5xl font-bold text-center mb-2 opacity-0 transform translate-y-8 px-4"
-    >
-      Watch Your <span class="text-yellow-400">Financial Future</span> Unfold
+    <!-- Mobile: Title/subtitle at top -->
+    <div class="md:hidden px-4 pt-4 pb-2">
+      <div 
+        bind:this={title}
+        class="text-lg font-bold text-center mb-1 opacity-0 transform translate-y-8"
+      >
+        Watch Your <span class="text-yellow-400">Financial Future</span> Unfold
+      </div>
+      <div 
+        bind:this={subtitle}
+        class="text-xs text-gray-300 text-center opacity-0 transform translate-y-4"
+      >
+        25-year cashflow analysis: Every euro matters
+      </div>
     </div>
 
-    <!-- Subtitle - Mobile optimized -->
-    <div 
-      bind:this={subtitle}
-      class="text-sm md:text-xl text-gray-300 text-center mb-4 md:mb-6 opacity-0 transform translate-y-4 max-w-2xl px-4"
-    >
-      25-year cashflow analysis: Every euro matters
+    <!-- Desktop: Centered layout -->
+    <div class="hidden md:flex md:flex-col md:items-center md:justify-center md:flex-1 md:p-4">
+      <div 
+        bind:this={titleDesktop}
+        class="text-5xl font-bold text-center mb-2 opacity-0 transform translate-y-8 px-4"
+      >
+        Watch Your <span class="text-yellow-400">Financial Future</span> Unfold
+      </div>
+      <div 
+        bind:this={subtitleDesktop}
+        class="text-xl text-gray-300 text-center mb-6 opacity-0 transform translate-y-4 max-w-2xl px-4"
+      >
+        25-year cashflow analysis: Every euro matters
+      </div>
     </div>
 
-    <!-- Professional 2D Chart Container -->
+    <!-- Professional 2D Chart Container - Mobile first -->
     <div 
       bind:this={chartContainer}
-      class="w-full max-w-5xl bg-white bg-opacity-5 rounded-xl border border-gray-600 p-6 shadow-2xl opacity-0 transform"
+      class="flex-1 mx-2 md:mx-auto md:w-full md:max-w-5xl bg-white bg-opacity-5 rounded-xl border border-gray-600 p-3 md:p-6 shadow-2xl opacity-0 transform"
     >
       <svg 
         bind:this={chartSvg}
