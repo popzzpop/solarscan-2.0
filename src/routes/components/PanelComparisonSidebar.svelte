@@ -77,20 +77,80 @@
 </script>
 
 
-<!-- Left Sidebar -->
-<div class="fixed left-0 top-0 h-full w-[500px] bg-white shadow-xl transform transition-transform duration-300 z-50 overflow-y-auto {isOpen ? 'translate-x-0' : '-translate-x-full'}">
+<!-- Responsive Sidebar/Bottom Sheet -->
+<div class="fixed inset-x-0 bottom-0 h-[70vh] md:left-0 md:top-0 md:h-full md:w-[500px] md:bottom-auto bg-white shadow-xl transform transition-transform duration-300 z-50 overflow-y-auto rounded-t-2xl md:rounded-none {isOpen ? 'translate-y-0 md:translate-x-0' : 'translate-y-full md:-translate-x-full'}">
   <!-- Header -->
-  <div class="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4">
-    <div class="flex items-center justify-between">
-      <h2 class="text-xl font-bold">💰 Panel System Comparison</h2>
+  <div class="bg-gradient-to-r from-blue-600 to-green-600 text-white p-3 md:p-4 relative">
+    <!-- Mobile drag handle -->
+    <div class="md:hidden absolute top-2 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-white bg-opacity-50 rounded-full"></div>
+    
+    <div class="flex items-center justify-between mt-2 md:mt-0">
+      <h2 class="text-lg md:text-xl font-bold">💰 Panel Comparison</h2>
       <button on:click={closeSidebar} class="text-white hover:text-gray-200 text-2xl font-bold">×</button>
     </div>
-    <p class="text-sm opacity-90 mt-1">Compare 11 vs 22 panel installations</p>
+    <p class="text-xs md:text-sm opacity-90 mt-1">11 vs 22 panel systems</p>
   </div>
 
-  <div class="p-6 space-y-6">
-    <!-- Comparison Table -->
-    <div class="overflow-x-auto">
+  <div class="p-4 md:p-6 space-y-4 md:space-y-6">
+    <!-- Mobile: System Cards -->
+    <div class="md:hidden space-y-3">
+      <!-- 11 Panel System Card -->
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-bold text-blue-600">11 Panel System</h3>
+          <span class="text-sm bg-blue-100 px-2 py-1 rounded text-blue-700">{config11Panels.systemSizeKw} kW</span>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p class="text-gray-600">Installation</p>
+            <p class="font-semibold text-blue-600">{showMoney(config11Panels.installationCost)}</p>
+          </div>
+          <div>
+            <p class="text-gray-600">Annual Income</p>
+            <p class="font-semibold text-green-600">{showMoney(metrics11.totalAnnualBenefitHigh)}</p>
+          </div>
+          <div>
+            <p class="text-gray-600">25-Year Profit</p>
+            <p class="font-bold text-green-600">{showMoney(metrics11.total25YearBenefitHigh)}</p>
+          </div>
+          <div>
+            <p class="text-gray-600">Payback</p>
+            <p class="font-semibold text-blue-600">{Math.round(metrics11.paybackPeriodHigh * 10) / 10} years</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 22 Panel System Card -->
+      <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-bold text-green-600">22 Panel System</h3>
+          <span class="text-sm bg-green-100 px-2 py-1 rounded text-green-700">{config22Panels.systemSizeKw} kW</span>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p class="text-gray-600">Installation</p>
+            <p class="font-semibold text-green-600">{showMoney(config22Panels.installationCost)}</p>
+          </div>
+          <div>
+            <p class="text-gray-600">Annual Income</p>
+            <p class="font-semibold text-green-600">{showMoney(metrics22.totalAnnualBenefitHigh)}</p>
+          </div>
+          <div>
+            <p class="text-gray-600">25-Year Profit</p>
+            <p class="font-bold text-green-600">{showMoney(metrics22.total25YearBenefitHigh)}</p>
+          </div>
+          <div>
+            <p class="text-gray-600">Payback</p>
+            <p class="font-semibold text-green-600">{Math.round(metrics22.paybackPeriodHigh * 10) / 10} years</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop: Comparison Table -->
+    <div class="hidden md:block overflow-x-auto">
       <table class="w-full border-collapse border border-gray-300 rounded-lg">
         <thead>
           <tr class="bg-gray-50">
@@ -144,49 +204,55 @@
       </table>
     </div>
 
-    <!-- Key Insights -->
-    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-      <h3 class="font-semibold text-blue-800 mb-3">💡 Key Insights</h3>
-      <div class="space-y-2 text-sm">
+    <!-- Key Insights - Simplified for mobile -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4">
+      <h3 class="font-semibold text-blue-800 mb-2 md:mb-3 text-sm md:text-base">💡 Key Insights</h3>
+      <div class="space-y-1 md:space-y-2 text-xs md:text-sm">
         <div class="flex items-center justify-between">
-          <span class="text-blue-700">Difference in profit (25 years):</span>
+          <span class="text-blue-700">Extra profit (22 vs 11):</span>
           <span class="font-bold text-blue-800">{showMoney(metrics22.total25YearBenefitHigh - metrics11.total25YearBenefitHigh)}</span>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between md:hidden">
+          <span class="text-blue-700">Extra investment:</span>
+          <span class="font-bold text-blue-800">{showMoney(config22Panels.installationCost - config11Panels.installationCost)}</span>
+        </div>
+        <!-- Desktop: More details -->
+        <div class="hidden md:flex items-center justify-between">
           <span class="text-blue-700">Extra annual income (22 vs 11):</span>
           <span class="font-bold text-blue-800">{showMoney(metrics22.totalAnnualBenefitHigh - metrics11.totalAnnualBenefitHigh)}</span>
         </div>
-        <div class="flex items-center justify-between">
+        <div class="hidden md:flex items-center justify-between">
           <span class="text-blue-700">Additional investment:</span>
           <span class="font-bold text-blue-800">{showMoney(config22Panels.installationCost - config11Panels.installationCost)}</span>
         </div>
       </div>
     </div>
 
-    <!-- Recommendation -->
-    <div class="bg-gradient-to-r from-green-100 to-blue-100 border border-green-200 rounded-lg p-4">
-      <h3 class="font-semibold text-green-800 mb-2">🚀 Our Recommendation</h3>
-      <p class="text-sm text-green-700 mb-3">
-        The {metrics22.total25YearBenefitHigh > metrics11.total25YearBenefitHigh * 1.5 ? '22-panel system' : '11-panel system'} 
-        offers {metrics22.total25YearBenefitHigh > metrics11.total25YearBenefitHigh * 1.5 ? 'significantly better' : 'good'} 
-        long-term returns for your investment.
+    <!-- Recommendation - Compact for mobile -->
+    <div class="bg-gradient-to-r from-green-100 to-blue-100 border border-green-200 rounded-lg p-3 md:p-4">
+      <h3 class="font-semibold text-green-800 mb-2 text-sm md:text-base">🚀 Recommendation</h3>
+      <p class="text-xs md:text-sm text-green-700 mb-2 md:mb-3">
+        {metrics22.total25YearBenefitHigh > metrics11.total25YearBenefitHigh * 1.5 ? '22-panel system' : '11-panel system'} 
+        offers better long-term returns.
       </p>
-      <div class="text-xs text-gray-600">
-        <p>✓ High feed-in tariff at €0.15/kWh</p>
-        <p>✓ 25-year panel warranty</p>
-        <p>✓ BOV financing available at 0.5%</p>
+      <div class="text-xs text-gray-600 space-y-0.5">
+        <p>✓ €0.15/kWh feed-in tariff</p>
+        <p class="hidden md:block">✓ 25-year panel warranty</p>
+        <p class="hidden md:block">✓ BOV financing available at 0.5%</p>
       </div>
     </div>
 
-    <!-- Contact CTA -->
-    <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 text-center">
-      <p class="text-orange-800 font-semibold mb-3">Ready for Your Solar Installation?</p>
-      <a href="tel:+35621234567" class="block bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold mb-2 w-full transition-colors duration-200">
-        📞 Get Free Quote: +356 2123 4567
-      </a>
-      <a href="https://wa.me/35679123456?text=Hi, I'd like a quote for a {config22Panels.panels}-panel solar system" class="block bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold w-full transition-colors duration-200">
-        💬 WhatsApp Quote
-      </a>
+    <!-- Contact CTA - Mobile optimized -->
+    <div class="bg-orange-50 border border-orange-200 rounded-lg p-3 md:p-4 text-center">
+      <p class="text-orange-800 font-semibold mb-2 md:mb-3 text-sm md:text-base">Get Your Quote</p>
+      <div class="space-y-2">
+        <a href="tel:+35621234567" class="block bg-orange-600 hover:bg-orange-700 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold w-full transition-colors duration-200 text-sm md:text-base">
+          📞 Call: +356 2123 4567
+        </a>
+        <a href="https://wa.me/35679123456?text=Hi, I'd like a quote for solar panels" class="block bg-green-600 hover:bg-green-700 text-white px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold w-full transition-colors duration-200 text-sm md:text-base">
+          💬 WhatsApp Quote
+        </a>
+      </div>
     </div>
   </div>
 </div>

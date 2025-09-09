@@ -120,39 +120,39 @@
   <!-- Fullscreen cinematic container -->
   <div class="fixed inset-0 z-[80] bg-black overflow-hidden" role="dialog" aria-label="Animated Cash Flow Analysis">
     
-    <!-- Close button (only visible after animation) -->
+    <!-- Close button (only visible after animation) - Mobile optimized -->
     {#if showControls}
       <button
         on:click={onContinueToAnalysis}
-        class="absolute top-6 right-6 text-white hover:text-gray-300 transition-colors z-[90] opacity-80 hover:opacity-100"
+        class="absolute top-4 right-4 md:top-6 md:right-6 text-white hover:text-gray-300 transition-colors z-[90] opacity-80 hover:opacity-100 p-2 md:p-0"
         aria-label="Close and continue to analysis"
       >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
     {/if}
 
-    <!-- Skip button (visible during animation) -->
+    <!-- Skip button (visible during animation) - Mobile optimized -->
     {#if canSkip && isPlaying && currentScene < 1}
       <button
         on:click={skipToEnd}
-        class="absolute top-6 right-6 text-white text-sm opacity-50 hover:opacity-80 transition-opacity z-[90] bg-black bg-opacity-30 px-3 py-1 rounded-full"
+        class="absolute top-4 right-4 md:top-6 md:right-6 text-white text-xs md:text-sm opacity-50 hover:opacity-80 transition-opacity z-[90] bg-black bg-opacity-30 px-2 py-1 md:px-3 md:py-1 rounded-full"
         aria-label="Skip animation"
       >
         Skip ⏭
       </button>
     {/if}
 
-    <!-- Animation controls (bottom center, visible from start) -->
+    <!-- Animation controls (bottom center, visible from start) - Mobile optimized -->
     {#if currentScene >= 0}
-      <div class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[90] flex gap-2">
+      <div class="absolute bottom-4 md:bottom-6 left-1/2 transform -translate-x-1/2 z-[90] flex gap-2">
         <button
           on:click={restartAnimation}
-          class="text-white opacity-60 hover:opacity-100 transition-opacity bg-black bg-opacity-40 p-2 rounded-full"
+          class="text-white opacity-60 hover:opacity-100 transition-opacity bg-black bg-opacity-40 p-1.5 md:p-2 rounded-full"
           aria-label="Restart animation"
         >
-          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+          <svg class="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
           </svg>
         </button>
@@ -176,9 +176,9 @@
     />
 
 
-    <!-- Keyboard hints -->
+    <!-- Keyboard hints - Hidden on mobile -->
     {#if showControls}
-      <div class="absolute bottom-6 right-6 text-white text-xs opacity-50 z-[85]">
+      <div class="absolute bottom-4 right-4 md:bottom-6 md:right-6 text-white text-xs opacity-50 z-[85] hidden md:block">
         <div>ESC/Enter: Continue</div>
         <div>R: Restart</div>
       </div>

@@ -20,15 +20,34 @@
   let year25BestOption = 0;
   let totalDifference = 0;
 
-  // Chart configuration
-  const chartWidth = 800;
-  const chartHeight = 400;
-  const chartLeft = 80;
-  const chartRight = chartWidth - 50;
-  const chartTop = 40;
-  const chartBottom = chartHeight - 60;
-  const chartInnerWidth = chartRight - chartLeft;
-  const chartInnerHeight = chartBottom - chartTop;
+  // Chart configuration - Responsive
+  let chartWidth = 800;
+  let chartHeight = 400;
+  let chartLeft = 80;
+  let chartRight = chartWidth - 50;
+  let chartTop = 40;
+  let chartBottom = chartHeight - 60;
+  let chartInnerWidth = chartRight - chartLeft;
+  let chartInnerHeight = chartBottom - chartTop;
+
+  // Update chart dimensions based on screen size
+  function updateChartDimensions() {
+    const isMobile = window.innerWidth < 768;
+    chartWidth = isMobile ? Math.min(window.innerWidth - 40, 360) : 800;
+    chartHeight = isMobile ? 280 : 400;
+    chartLeft = isMobile ? 50 : 80;
+    chartRight = chartWidth - (isMobile ? 20 : 50);
+    chartTop = isMobile ? 30 : 40;
+    chartBottom = chartHeight - (isMobile ? 40 : 60);
+    chartInnerWidth = chartRight - chartLeft;
+    chartInnerHeight = chartBottom - chartTop;
+  }
+
+  onMount(() => {
+    updateChartDimensions();
+    window.addEventListener('resize', updateChartDimensions);
+    return () => window.removeEventListener('resize', updateChartDimensions);
+  });
 
   // Chart data calculation
   $: cashFlowData = calculateCashFlowData();
@@ -417,18 +436,18 @@
     bind:this={container}
     class="absolute inset-0 flex flex-col items-center justify-center text-white bg-gradient-to-br from-gray-900 via-black to-blue-900 opacity-0 p-4 overflow-y-auto"
   >
-    <!-- Scene title -->
+    <!-- Scene title - Mobile optimized -->
     <div 
       bind:this={title}
-      class="text-3xl md:text-5xl font-bold text-center mb-2 opacity-0 transform translate-y-8"
+      class="text-2xl md:text-5xl font-bold text-center mb-2 opacity-0 transform translate-y-8 px-4"
     >
       Watch Your <span class="text-yellow-400">Financial Future</span> Unfold
     </div>
 
-    <!-- Subtitle -->
+    <!-- Subtitle - Mobile optimized -->
     <div 
       bind:this={subtitle}
-      class="text-lg md:text-xl text-gray-300 text-center mb-6 opacity-0 transform translate-y-4 max-w-2xl"
+      class="text-sm md:text-xl text-gray-300 text-center mb-4 md:mb-6 opacity-0 transform translate-y-4 max-w-2xl px-4"
     >
       25-year cashflow analysis: Every euro matters
     </div>
@@ -471,7 +490,7 @@
             y={chartTop + i * (chartInnerHeight / 5) + 5} 
             fill="#9ca3af" 
             text-anchor="end" 
-            font-size="12"
+            font-size={chartWidth < 400 ? "10" : "12"}
           >
             €{Math.round((cashFlowData.chartMax - (i / 5) * (cashFlowData.chartMax - cashFlowData.chartMin)) / 1000)}k
           </text>
@@ -484,7 +503,7 @@
             y={chartBottom + 20} 
             fill="#9ca3af" 
             text-anchor="middle" 
-            font-size="12"
+            font-size={chartWidth < 400 ? "10" : "12"}
           >
             {year}
           </text>
@@ -515,7 +534,7 @@
             y={valueToY(0) - 8} 
             fill="#fbbf24" 
             text-anchor="end" 
-            font-size="11" 
+            font-size={chartWidth < 400 ? "9" : "11"}
             font-weight="bold"
           >
             Break Even
@@ -534,39 +553,66 @@
           rx="4"
         />
         
-        <!-- Axis labels -->
-        <text x={chartLeft + chartInnerWidth/2} y={chartBottom + 45} fill="#9ca3af" text-anchor="middle" font-size="14" font-weight="bold">Years</text>
-        <text x={30} y={chartTop + chartInnerHeight/2} fill="#9ca3af" text-anchor="middle" font-size="14" font-weight="bold" transform="rotate(-90, 30, {chartTop + chartInnerHeight/2})">Cumulative Cash Flow (€)</text>
+        <!-- Axis labels - Mobile responsive -->
+        <text x={chartLeft + chartInnerWidth/2} y={chartBottom + (chartWidth < 400 ? 35 : 45)} fill="#9ca3af" text-anchor="middle" font-size={chartWidth < 400 ? "12" : "14"} font-weight="bold">Years</text>
+        <text x={chartWidth < 400 ? 20 : 30} y={chartTop + chartInnerHeight/2} fill="#9ca3af" text-anchor="middle" font-size={chartWidth < 400 ? "11" : "14"} font-weight="bold" transform="rotate(-90, {chartWidth < 400 ? 20 : 30}, {chartTop + chartInnerHeight/2})">{chartWidth < 400 ? "Cash Flow (€)" : "Cumulative Cash Flow (€)"}</text>
       </svg>
     </div>
 
 
-    <!-- Legend -->
-    <div class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-3 text-sm max-w-4xl w-full">
-      <div class="flex items-center gap-2 bg-red-900 bg-opacity-30 rounded-lg p-2">
-        <div class="w-4 h-1 bg-red-500 rounded"></div>
-        <span class="text-red-300">No Solar (Bleeding)</span>
+    <!-- Legend - Mobile optimized -->
+    <div class="mt-4 md:mt-6 w-full max-w-4xl">
+      <!-- Mobile: 2 columns -->
+      <div class="grid grid-cols-2 md:hidden gap-2 text-xs">
+        <div class="flex items-center gap-1 bg-red-900 bg-opacity-30 rounded-lg p-1.5">
+          <div class="w-3 h-0.5 bg-red-500 rounded"></div>
+          <span class="text-red-300">No Solar</span>
+        </div>
+        <div class="flex items-center gap-1 bg-blue-900 bg-opacity-30 rounded-lg p-1.5">
+          <div class="w-3 h-0.5 bg-blue-500 rounded"></div>
+          <span class="text-blue-300">Basic</span>
+        </div>
+        <div class="flex items-center gap-1 bg-green-900 bg-opacity-30 rounded-lg p-1.5">
+          <div class="w-3 h-0.5 bg-green-500 rounded"></div>
+          <span class="text-green-300">Smart</span>
+        </div>
+        <div class="flex items-center gap-1 bg-yellow-900 bg-opacity-30 rounded-lg p-1.5 border border-yellow-600">
+          <div class="w-3 h-0.5 bg-yellow-500 rounded"></div>
+          <span class="text-yellow-300 font-bold">💰 Best</span>
+        </div>
+        <div class="flex items-center gap-1 bg-cyan-900 bg-opacity-30 rounded-lg p-1.5 col-span-2">
+          <div class="w-3 h-0.5 bg-cyan-500 rounded"></div>
+          <span class="text-cyan-300">🏦 Financed</span>
+        </div>
       </div>
-      <div class="flex items-center gap-2 bg-blue-900 bg-opacity-30 rounded-lg p-2">
-        <div class="w-4 h-1 bg-blue-500 rounded"></div>
-        <span class="text-blue-300">Basic Solar</span>
-      </div>
-      <div class="flex items-center gap-2 bg-green-900 bg-opacity-30 rounded-lg p-2">
-        <div class="w-4 h-1 bg-green-500 rounded"></div>
-        <span class="text-green-300">Smart Solar</span>
-      </div>
-      <div class="flex items-center gap-2 bg-yellow-900 bg-opacity-30 rounded-lg p-2 border border-yellow-600">
-        <div class="w-4 h-1 bg-yellow-500 rounded shadow-lg"></div>
-        <span class="text-yellow-300 font-bold">💰 Money Printer</span>
-      </div>
-      <div class="flex items-center gap-2 bg-cyan-900 bg-opacity-30 rounded-lg p-2">
-        <div class="w-4 h-1 bg-cyan-500 rounded"></div>
-        <span class="text-cyan-300">🏦 Financed</span>
+      
+      <!-- Desktop: 5 columns -->
+      <div class="hidden md:grid grid-cols-5 gap-3 text-sm">
+        <div class="flex items-center gap-2 bg-red-900 bg-opacity-30 rounded-lg p-2">
+          <div class="w-4 h-1 bg-red-500 rounded"></div>
+          <span class="text-red-300">No Solar (Bleeding)</span>
+        </div>
+        <div class="flex items-center gap-2 bg-blue-900 bg-opacity-30 rounded-lg p-2">
+          <div class="w-4 h-1 bg-blue-500 rounded"></div>
+          <span class="text-blue-300">Basic Solar</span>
+        </div>
+        <div class="flex items-center gap-2 bg-green-900 bg-opacity-30 rounded-lg p-2">
+          <div class="w-4 h-1 bg-green-500 rounded"></div>
+          <span class="text-green-300">Smart Solar</span>
+        </div>
+        <div class="flex items-center gap-2 bg-yellow-900 bg-opacity-30 rounded-lg p-2 border border-yellow-600">
+          <div class="w-4 h-1 bg-yellow-500 rounded shadow-lg"></div>
+          <span class="text-yellow-300 font-bold">💰 Money Printer</span>
+        </div>
+        <div class="flex items-center gap-2 bg-cyan-900 bg-opacity-30 rounded-lg p-2">
+          <div class="w-4 h-1 bg-cyan-500 rounded"></div>
+          <span class="text-cyan-300">🏦 Financed</span>
+        </div>
       </div>
     </div>
 
-    <!-- Key insight -->
-    <div class="mt-4 text-center text-gray-300 max-w-2xl">
+    <!-- Key insight - Hidden on mobile -->
+    <div class="mt-3 md:mt-4 text-center text-gray-300 max-w-2xl hidden md:block">
       <p class="text-sm opacity-75">
         Lines draw in real-time showing your financial trajectory over 25 years
       </p>
@@ -577,41 +623,43 @@
       bind:this={finalComparisonContainer}
       class="mt-8 text-center max-w-4xl opacity-0 transform scale-95"
     >
-      <h2 class="text-3xl md:text-4xl font-bold text-white mb-6">
+      <!-- Mobile optimized title -->
+      <h2 class="text-2xl md:text-4xl font-bold text-white mb-4 md:mb-6 px-4">
         After 25 Years...
       </h2>
       
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <!-- Comparison cards - Mobile stack, Desktop side by side -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4 md:mb-8 px-4">
         <!-- Without Solar -->
-        <div class="bg-gradient-to-br from-red-900 to-red-800 rounded-2xl p-6 border-2 border-red-500">
-          <div class="text-red-300 text-lg font-semibold mb-2">😰 Without Solar</div>
-          <div class="text-3xl md:text-4xl font-bold text-red-400 mb-2">
+        <div class="bg-gradient-to-br from-red-900 to-red-800 rounded-2xl p-4 md:p-6 border-2 border-red-500">
+          <div class="text-red-300 text-sm md:text-lg font-semibold mb-1 md:mb-2">😰 Without Solar</div>
+          <div class="text-2xl md:text-4xl font-bold text-red-400 mb-1 md:mb-2">
             -€{Math.round(year25NoSolar).toLocaleString()}
           </div>
-          <div class="text-red-200 text-sm">Money lost to electricity bills</div>
+          <div class="text-red-200 text-xs md:text-sm">Money lost to electricity bills</div>
         </div>
 
         <!-- With Smart Solar -->
-        <div class="bg-gradient-to-br from-yellow-900 to-orange-800 rounded-2xl p-6 border-2 border-yellow-500">
-          <div class="text-yellow-300 text-lg font-semibold mb-2">💰 With Smart Solar</div>
-          <div class="text-3xl md:text-4xl font-bold text-yellow-400 mb-2">
+        <div class="bg-gradient-to-br from-yellow-900 to-orange-800 rounded-2xl p-4 md:p-6 border-2 border-yellow-500">
+          <div class="text-yellow-300 text-sm md:text-lg font-semibold mb-1 md:mb-2">💰 With Smart Solar</div>
+          <div class="text-2xl md:text-4xl font-bold text-yellow-400 mb-1 md:mb-2">
             +€{Math.round(year25BestOption).toLocaleString()}
           </div>
-          <div class="text-yellow-200 text-sm">Profit in your pocket</div>
+          <div class="text-yellow-200 text-xs md:text-sm">Profit in your pocket</div>
         </div>
       </div>
 
-      <!-- Total difference -->
-      <div class="bg-gradient-to-r from-green-800 via-emerald-700 to-green-800 rounded-3xl p-8 border-4 border-green-400 shadow-2xl">
-        <div class="text-green-200 text-xl mb-3">🚀 That's a Total Difference of:</div>
-        <div class="text-5xl md:text-7xl font-bold text-green-300 mb-3 glow-effect">
+      <!-- Total difference - Mobile optimized -->
+      <div class="bg-gradient-to-r from-green-800 via-emerald-700 to-green-800 rounded-2xl md:rounded-3xl p-4 md:p-8 border-2 md:border-4 border-green-400 shadow-2xl mx-4">
+        <div class="text-green-200 text-sm md:text-xl mb-2 md:mb-3">🚀 Total Difference:</div>
+        <div class="text-3xl md:text-7xl font-bold text-green-300 mb-2 md:mb-3 glow-effect">
           €{Math.round(totalDifference).toLocaleString()}
         </div>
-        <div class="text-green-100 text-lg font-semibold">
+        <div class="text-green-100 text-sm md:text-lg font-semibold">
           In your favor with solar! 
         </div>
-        <div class="text-green-200 text-sm mt-2 opacity-80">
-          This is a SIX-FIGURE financial decision
+        <div class="text-green-200 text-xs md:text-sm mt-1 md:mt-2 opacity-80">
+          This is a SIX-FIGURE decision
         </div>
       </div>
     </div>
