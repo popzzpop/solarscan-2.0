@@ -130,6 +130,11 @@
   {/if}
 </div>
 
+<!-- Version Badge - Shows current version -->
+<div class="fixed top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-mono opacity-75 z-30">
+  v2.0-mobile
+</div>
+
 <!-- Update Notification -->
 {#if showUpdateNotification}
   <div class="fixed top-4 right-4 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-50">

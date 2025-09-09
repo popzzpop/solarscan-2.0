@@ -1,9 +1,9 @@
 // SolarScan Malta - Service Worker for PWA
 // Provides offline support and caching for better performance
 
-const CACHE_NAME = 'solarscan-malta-v1';
-const STATIC_CACHE = 'solarscan-static-v1';
-const DYNAMIC_CACHE = 'solarscan-dynamic-v1';
+const CACHE_NAME = 'solarscan-malta-v2-mobile';
+const STATIC_CACHE = 'solarscan-static-v2-mobile';
+const DYNAMIC_CACHE = 'solarscan-dynamic-v2-mobile';
 
 // Files to cache for offline functionality
 const STATIC_ASSETS = [
@@ -23,7 +23,7 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', event => {
-  console.log('Service Worker: Installing...');
+  console.log('Service Worker v2-mobile: Installing...');
   
   event.waitUntil(
     caches.open(STATIC_CACHE)
@@ -39,15 +39,15 @@ self.addEventListener('install', event => {
         );
       })
       .then(() => {
-        console.log('Service Worker: Static assets cached');
-        return self.skipWaiting(); // Activate immediately
+        console.log('Service Worker v2-mobile: Static assets cached');
+        return self.skipWaiting(); // Activate immediately - forces update
       })
   );
 });
 
 // Activate event - clean old caches
 self.addEventListener('activate', event => {
-  console.log('Service Worker: Activating...');
+  console.log('Service Worker v2-mobile: Activating...');
   
   event.waitUntil(
     caches.keys()
@@ -57,14 +57,22 @@ self.addEventListener('activate', event => {
             if (cacheName !== STATIC_CACHE && 
                 cacheName !== DYNAMIC_CACHE && 
                 cacheName !== CACHE_NAME) {
-              console.log('Service Worker: Deleting old cache:', cacheName);
+              console.log('Service Worker v2-mobile: Deleting old cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
       .then(() => {
-        console.log('Service Worker: Activated');
+        console.log('Service Worker v2-mobile: Activated - forcing page reload');
+        // Force all clients to reload to get new version
+        return self.clients.matchAll().then(clients => {
+          clients.forEach(client => {
+            client.navigate(client.url);
+          });
+        });
+      })
+      .then(() => {
         return self.clients.claim(); // Take control immediately
       })
   );
