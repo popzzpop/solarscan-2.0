@@ -17,6 +17,16 @@
 <script lang="ts">
   import '../app.css';
   import '../theme/theme.css';
+  import { onMount } from 'svelte';
+  import { registerServiceWorker, setupPWAInstallPrompt } from '$lib/pwa';
+
+  onMount(() => {
+    // Register service worker for PWA functionality
+    registerServiceWorker();
+    
+    // Setup PWA install prompt
+    setupPWAInstallPrompt();
+  });
 
   import '@material/web/button/elevated-button';
   import '@material/web/button/filled-button';

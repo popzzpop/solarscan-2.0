@@ -36,6 +36,7 @@
   import MonthlyBillModal from './components/MonthlyBillModal.svelte';
   import CashFlowCinematic from './components/CashFlowCinematic.svelte';
   import ContactCaptureModal from './components/ContactCaptureModal.svelte';
+  import FullscreenToggle from './components/FullscreenToggle.svelte';
   import { initEmailJS, sendLeadNotification, type LeadData } from '$lib/emailService';
 
   const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -621,3 +622,6 @@
   bind:isVisible={showContactCapture}
   onContactCapture={handleContactCapture}
 />
+
+<!-- Fullscreen Toggle and PWA Controls -->
+<FullscreenToggle />

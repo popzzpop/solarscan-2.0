@@ -391,9 +391,33 @@
   <SolarDataLayers {buildingInsights} {map} {googleMapsApiKey} bind:selectedLayerId={currentLayerId} bind:isLoading={layerIsLoading} bind:selectedMonth={currentMonth} bind:selectedHour={currentHour} bind:selectedDayOfYear={currentDayOfYear} showcaseMode={isActive} />
 </div>
 
-<!-- Showcase overlay -->
+<!-- Showcase overlay - Responsive design -->
 {#if isActive}
-  <div class="fixed top-8 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
+  <!-- Mobile: Ultra-compact top bar -->
+  <div class="md:hidden fixed top-2 left-2 right-2 z-50 pointer-events-none">
+    <div class="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg px-3 py-2">
+      <!-- Single line layout for mobile -->
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-gray-700 font-medium">
+          {currentStep + 1}/{showcaseSteps.length}
+        </span>
+        <div class="flex-1 mx-2">
+          <div class="w-full bg-gray-200 rounded-full h-1">
+            <div 
+              class="bg-gradient-to-r from-blue-500 to-green-500 h-1 rounded-full transition-all duration-100"
+              style="width: {progress}%"
+            ></div>
+          </div>
+        </div>
+        <span class="text-blue-600 font-medium text-xs">
+          {showcaseSteps[currentStep]?.message?.split(' ')[0] || ''} {timeIndicator}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Desktop: Full detailed overlay -->
+  <div class="hidden md:block fixed top-8 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none">
     <div class="bg-white rounded-xl shadow-2xl p-6 max-w-md transform transition-all duration-500">
       <!-- Progress bar -->
       <div class="mb-4">
