@@ -34,7 +34,7 @@
             if (result?.zoom) {
               map.setZoom(result.zoom);
             } else {
-              map.setZoom(18); // Fallback
+              map.setZoom(19); // Fallback
             }
           });
           

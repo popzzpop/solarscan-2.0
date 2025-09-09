@@ -1,9 +1,9 @@
 // SolarScan Malta - Service Worker for PWA
 // Provides offline support and caching for better performance
 
-const CACHE_NAME = 'solarscan-malta-v2-mobile';
-const STATIC_CACHE = 'solarscan-static-v2-mobile';
-const DYNAMIC_CACHE = 'solarscan-dynamic-v2-mobile';
+const CACHE_NAME = 'solarscan-malta-v2.1-zoom19';
+const STATIC_CACHE = 'solarscan-static-v2.1-zoom19';
+const DYNAMIC_CACHE = 'solarscan-dynamic-v2.1-zoom19';
 
 // Files to cache for offline functionality
 const STATIC_ASSETS = [

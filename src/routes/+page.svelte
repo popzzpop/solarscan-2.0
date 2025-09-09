@@ -46,7 +46,7 @@
   };
   let location: google.maps.LatLng | undefined;
   let selectedAddress = defaultPlace.address; // Store the actual selected address
-  const zoom = 18;
+  const zoom = 19;
   
   // Sidebar state
   let leftSidebarOpen = false;
@@ -153,7 +153,7 @@
           if (result?.zoom) {
             map.setZoom(result.zoom);
           } else {
-            map.setZoom(18); // Fallback
+            map.setZoom(19); // Fallback
           }
         });
         
